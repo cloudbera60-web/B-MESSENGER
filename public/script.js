@@ -1,1461 +1,1476 @@
-// B MESSENGER - WhatsApp/Telegram Clone
-class BMessenger {
+// ===== B-MESSENGER MOBILE APP =====
+// Mobile-first WhatsApp clone with native feel
+
+class MessengerApp {
     constructor() {
+        // App State
         this.socket = null;
         this.currentUser = null;
         this.currentChat = null;
-        this.conversations = [];
-        this.users = [];
+        this.conversationId = null;
+        this.contacts = [];
+        this.chats = [];
         this.onlineUsers = new Set();
+        this.isTyping = false;
         this.typingTimeout = null;
-        this.isAdmin = false;
         
-        // Initialize the app
+        // DOM Elements
+        this.elements = {
+            // Screens
+            loadingScreen: document.getElementById('loading-screen'),
+            loginScreen: document.getElementById('login-screen'),
+            mainApp: document.getElementById('main-app'),
+            chatScreen: document.getElementById('chat-screen'),
+            
+            // Login
+            phoneInput: document.getElementById('phone-input'),
+            nameInput: document.getElementById('name-input'),
+            passwordInput: document.getElementById('password-input'),
+            loginBtn: document.getElementById('login-btn'),
+            
+            // Header
+            headerTitle: document.getElementById('header-title'),
+            menuBtn: document.getElementById('menu-btn'),
+            searchBtn: document.getElementById('search-btn'),
+            moreBtn: document.getElementById('more-btn'),
+            
+            // Navigation
+            navTabs: document.querySelectorAll('.nav-tab'),
+            tabContents: {
+                chats: document.getElementById('chats-tab'),
+                status: document.getElementById('status-tab'),
+                calls: document.getElementById('calls-tab')
+            },
+            
+            // Search
+            searchBar: document.getElementById('search-bar'),
+            globalSearch: document.getElementById('global-search'),
+            searchClear: document.getElementById('search-clear'),
+            
+            // Chats
+            chatsList: document.getElementById('chats-list'),
+            newChatFab: document.getElementById('new-chat-fab'),
+            
+            // Status
+            myStatus: document.getElementById('my-status'),
+            statusList: document.getElementById('status-list'),
+            
+            // Calls
+            callsList: document.getElementById('calls-list'),
+            createCallLink: document.getElementById('create-call-link'),
+            
+            // Chat Screen
+            chatBackBtn: document.getElementById('chat-back-btn'),
+            chatAvatar: document.getElementById('chat-avatar'),
+            chatUserName: document.getElementById('chat-user-name'),
+            chatUserStatus: document.getElementById('chat-user-status'),
+            callBtn: document.getElementById('call-btn'),
+            videoCallBtn: document.getElementById('video-call-btn'),
+            chatMenuBtn: document.getElementById('chat-menu-btn'),
+            
+            // Messages
+            messagesContainer: document.getElementById('messages-container'),
+            typingIndicator: document.getElementById('typing-indicator'),
+            
+            // Inputs
+            messageInput: document.getElementById('message-input'),
+            sendButton: document.getElementById('send-button'),
+            chatMessageInput: document.getElementById('chat-message-input'),
+            chatSendButton: document.getElementById('chat-send-button'),
+            attachBtn: document.getElementById('attach-btn'),
+            emojiBtn: document.getElementById('emoji-btn'),
+            chatAttachBtn: document.getElementById('chat-attach-btn'),
+            chatEmojiBtn: document.getElementById('chat-emoji-btn'),
+            
+            // Modals
+            newChatModal: document.getElementById('new-chat-modal'),
+            closeNewChat: document.getElementById('close-new-chat'),
+            contactSearch: document.getElementById('contact-search'),
+            contactsList: document.getElementById('contacts-list'),
+            
+            // Side Menu
+            sideMenu: document.getElementById('side-menu'),
+            menuAvatar: document.getElementById('menu-avatar'),
+            menuUserName: document.getElementById('menu-user-name'),
+            menuUserStatus: document.getElementById('menu-user-status'),
+            logoutBtn: document.getElementById('logout-btn'),
+            
+            // Action Menu
+            messageActions: document.getElementById('message-actions'),
+            
+            // Toast
+            toast: document.getElementById('toast')
+        };
+        
+        // Initialize
         this.init();
     }
-
-    async init() {
-        // Check for existing session
-        await this.checkAuth();
-        
-        // Setup event listeners
+    
+    // ===== INITIALIZATION =====
+    init() {
         this.setupEventListeners();
-        
-        // Initialize socket if user is logged in
-        if (this.currentUser) {
-            await this.initializeSocket();
-            await this.loadInitialData();
-        }
+        this.checkSavedSession();
     }
-
-    async checkAuth() {
-        const token = localStorage.getItem('bm_token');
-        if (!token) {
-            this.showLoginScreen();
-            return;
-        }
-
-        try {
-            const response = await fetch('/api/auth/verify', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            const data = await response.json();
-            
-            if (data.success) {
-                this.currentUser = data.user;
-                this.isAdmin = data.user.role === 'admin';
-                this.showMainApp();
-            } else {
-                localStorage.removeItem('bm_token');
-                this.showLoginScreen();
-            }
-        } catch (error) {
-            console.error('Auth check failed:', error);
-            localStorage.removeItem('bm_token');
-            this.showLoginScreen();
-        }
-    }
-
-    showLoginScreen() {
-        document.getElementById('login-screen').style.display = 'flex';
-        document.getElementById('register-screen').style.display = 'none';
-        document.getElementById('app-container').style.display = 'none';
-    }
-
-    showRegisterScreen() {
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('register-screen').style.display = 'flex';
-        document.getElementById('app-container').style.display = 'none';
-    }
-
-    showMainApp() {
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('register-screen').style.display = 'none';
-        document.getElementById('app-container').style.display = 'flex';
-        
-        // Update user info
-        this.updateUserInfo();
-        
-        // Show admin dashboard button if user is admin
-        if (this.isAdmin) {
-            document.getElementById('admin-dashboard-btn').style.display = 'block';
-        }
-    }
-
-    updateUserInfo() {
-        if (!this.currentUser) return;
-        
-        const avatarImg = document.getElementById('user-avatar-img');
-        const avatarText = this.currentUser.displayName?.charAt(0) || 'U';
-        
-        if (this.currentUser.avatar && this.currentUser.avatar.startsWith('http')) {
-            avatarImg.src = this.currentUser.avatar;
-            avatarImg.alt = this.currentUser.displayName;
-            avatarImg.style.display = 'block';
-        } else {
-            avatarImg.style.display = 'none';
-            const avatarDiv = document.querySelector('#user-avatar');
-            if (avatarDiv) {
-                const textSpan = document.createElement('span');
-                textSpan.textContent = avatarText;
-                textSpan.style.color = 'white';
-                textSpan.style.fontSize = '18px';
-                textSpan.style.fontWeight = '500';
-                avatarDiv.innerHTML = '';
-                avatarDiv.appendChild(textSpan);
-            }
-        }
-        
-        document.getElementById('current-user-name').textContent = this.currentUser.displayName || this.currentUser.username;
-        document.getElementById('current-user-status').innerHTML = `
-            <i class="fas fa-circle online"></i>
-            <span>Online</span>
-        `;
-    }
-
+    
     setupEventListeners() {
-        // Login form
-        document.getElementById('login-btn').addEventListener('click', () => this.login());
-        document.getElementById('login-password').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.login();
+        // Login
+        this.elements.loginBtn.addEventListener('click', () => this.handleLogin());
+        this.elements.passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.handleLogin();
         });
         
-        // Register form
-        document.getElementById('register-btn').addEventListener('click', () => this.register());
-        document.getElementById('register-confirm-password').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.register();
+        // Navigation
+        this.elements.navTabs.forEach(tab => {
+            tab.addEventListener('click', (e) => this.switchTab(e.currentTarget.dataset.tab));
         });
         
-        // Navigation between login/register
-        document.getElementById('go-to-register').addEventListener('click', () => this.showRegisterScreen());
-        document.getElementById('go-to-login').addEventListener('click', () => this.showLoginScreen());
-        document.getElementById('back-to-login').addEventListener('click', () => this.showLoginScreen());
+        // Header Actions
+        this.elements.menuBtn.addEventListener('click', () => this.toggleSideMenu());
+        this.elements.searchBtn.addEventListener('click', () => this.toggleSearch());
+        this.elements.moreBtn.addEventListener('click', () => this.showMoreOptions());
         
-        // Password visibility toggles
-        this.setupPasswordToggles();
+        // Search
+        this.elements.globalSearch.addEventListener('input', (e) => this.handleSearch(e.target.value));
+        this.elements.searchClear.addEventListener('click', () => this.clearSearch());
         
-        // Search functionality
-        document.getElementById('search-input').addEventListener('input', (e) => this.handleSearch(e.target.value));
-        document.getElementById('search-clear').addEventListener('click', () => this.clearSearch());
+        // Chat Actions
+        this.elements.newChatFab.addEventListener('click', () => this.showNewChatModal());
+        this.elements.closeNewChat.addEventListener('click', () => this.hideNewChatModal());
+        this.elements.contactSearch.addEventListener('input', (e) => this.searchContacts(e.target.value));
         
-        // New chat and group buttons
-        document.getElementById('new-chat-btn').addEventListener('click', () => this.showNewChatModal());
-        document.getElementById('new-group-btn').addEventListener('click', () => this.showNewGroupModal());
+        // Message Inputs
+        this.elements.messageInput.addEventListener('input', (e) => this.handleInputChange(e.target, 'main'));
+        this.elements.chatMessageInput.addEventListener('input', (e) => this.handleInputChange(e.target, 'chat'));
         
-        // Admin dashboard
-        document.getElementById('admin-dashboard-btn')?.addEventListener('click', () => this.showAdminModal());
-        
-        // Message input
-        const messageInput = document.getElementById('message-input');
-        messageInput.addEventListener('input', () => this.handleMessageInput());
-        messageInput.addEventListener('keydown', (e) => this.handleKeyPress(e));
-        
-        // Back buttons
-        document.getElementById('back-to-chats').addEventListener('click', () => this.closeChat());
-        
-        // Modal close buttons
-        document.querySelectorAll('.modal-close').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const modal = e.target.closest('.modal');
-                this.hideModal(modal.id);
-            });
+        this.elements.messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.sendMessage('main');
         });
-    }
-
-    setupPasswordToggles() {
-        const toggles = [
-            { button: 'show-login-password', input: 'login-password' },
-            { button: 'show-register-password', input: 'register-password' },
-            { button: 'show-confirm-password', input: 'register-confirm-password' }
-        ];
         
-        toggles.forEach(({ button, input }) => {
-            const toggleBtn = document.getElementById(button);
-            const inputField = document.getElementById(input);
-            
-            if (toggleBtn && inputField) {
-                toggleBtn.addEventListener('click', () => {
-                    const type = inputField.type === 'password' ? 'text' : 'password';
-                    inputField.type = type;
-                    toggleBtn.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
-                });
+        this.elements.chatMessageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.sendMessage('chat');
+        });
+        
+        this.elements.sendButton.addEventListener('click', () => this.sendMessage('main'));
+        this.elements.chatSendButton.addEventListener('click', () => this.sendMessage('chat'));
+        
+        this.elements.attachBtn.addEventListener('click', () => this.showAttachmentOptions('main'));
+        this.elements.chatAttachBtn.addEventListener('click', () => this.showAttachmentOptions('chat'));
+        
+        // Chat Screen
+        this.elements.chatBackBtn.addEventListener('click', () => this.closeChat());
+        this.elements.callBtn.addEventListener('click', () => this.startCall('audio'));
+        this.elements.videoCallBtn.addEventListener('click', () => this.startCall('video'));
+        this.elements.chatMenuBtn.addEventListener('click', () => this.showChatOptions());
+        
+        // Side Menu
+        this.elements.logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.logout();
+        });
+        
+        // Modal Overlay
+        this.elements.newChatModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.newChatModal) {
+                this.hideNewChatModal();
             }
         });
+        
+        // Prevent body scroll when modal is open
+        document.addEventListener('touchmove', (e) => {
+            if (this.elements.newChatModal.classList.contains('active')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
     }
-
-    async login() {
-        const username = document.getElementById('login-username').value.trim();
-        const password = document.getElementById('login-password').value;
-        const rememberMe = document.getElementById('remember-me').checked;
-
-        if (!username || !password) {
-            this.showToast('Please enter username and password', 'error');
+    
+    // ===== AUTHENTICATION =====
+    async handleLogin() {
+        const phone = this.elements.phoneInput.value.trim();
+        const name = this.elements.nameInput.value.trim();
+        const password = this.elements.passwordInput.value;
+        
+        if (!phone || !password) {
+            this.showToast('Phone and password are required');
             return;
         }
-
-        this.showLoading(true);
-
+        
+        if (password.length < 6) {
+            this.showToast('Password must be at least 6 characters');
+            return;
+        }
+        
+        // Show loading on button
+        const originalText = this.elements.loginBtn.innerHTML;
+        this.elements.loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        this.elements.loginBtn.disabled = true;
+        
         try {
+            // Check if user exists (simplified for demo)
+            // In real app, you'd check against your database
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({
+                    username: phone,
+                    password: password
+                })
             });
-
-            const data = await response.json();
-
-            if (data.success) {
-                // Store token
-                localStorage.setItem('bm_token', data.token);
-                if (rememberMe) {
-                    localStorage.setItem('bm_remember', 'true');
-                }
-                
-                this.currentUser = data.user;
-                this.isAdmin = data.user.role === 'admin';
-                
-                this.showToast('Login successful!', 'success');
-                
-                // Show main app
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Login successful
+                this.currentUser = result.user;
+                this.saveSession();
                 this.showMainApp();
-                
-                // Initialize socket and load data
-                await this.initializeSocket();
-                await this.loadInitialData();
-                
+                this.initializeSocket();
+                this.loadInitialData();
             } else {
-                this.showToast(data.error || 'Login failed', 'error');
+                // Try registration
+                await this.handleRegister(phone, name, password);
             }
+            
         } catch (error) {
             console.error('Login error:', error);
-            this.showToast('Network error. Please try again.', 'error');
+            // For demo, create a user locally
+            await this.createDemoUser(phone, name);
         } finally {
-            this.showLoading(false);
+            this.elements.loginBtn.innerHTML = originalText;
+            this.elements.loginBtn.disabled = false;
         }
     }
-
-    async register() {
-        const username = document.getElementById('register-username').value.trim();
-        const displayName = document.getElementById('register-displayname').value.trim();
-        const email = document.getElementById('register-email').value.trim();
-        const password = document.getElementById('register-password').value;
-        const confirmPassword = document.getElementById('register-confirm-password').value;
-        const termsAgreed = document.getElementById('terms-agreement').checked;
-
-        // Validation
-        if (!username || !displayName || !password || !confirmPassword) {
-            this.showToast('Please fill in all required fields', 'error');
-            return;
-        }
-
-        if (password.length < 6) {
-            this.showToast('Password must be at least 6 characters', 'error');
-            return;
-        }
-
-        if (password !== confirmPassword) {
-            this.showToast('Passwords do not match', 'error');
-            return;
-        }
-
-        if (!termsAgreed) {
-            this.showToast('Please agree to the terms and conditions', 'error');
-            return;
-        }
-
-        this.showLoading(true);
-
+    
+    async handleRegister(phone, name, password) {
         try {
             const response = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, displayName, email, password })
+                body: JSON.stringify({
+                    phone,
+                    name,
+                    password
+                })
             });
-
-            const data = await response.json();
-
-            if (data.success) {
-                this.showToast('Account created successfully!', 'success');
-                
-                // Auto-login after registration
-                localStorage.setItem('bm_token', data.token);
-                this.currentUser = data.user;
-                this.isAdmin = data.user.role === 'admin';
-                
-                // Switch to main app
-                setTimeout(() => {
-                    this.showMainApp();
-                    this.initializeSocket();
-                    this.loadInitialData();
-                }, 1500);
-                
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.currentUser = result.user;
+                this.saveSession();
+                this.showMainApp();
+                this.initializeSocket();
+                this.loadInitialData();
             } else {
-                this.showToast(data.error || 'Registration failed', 'error');
+                this.showToast(result.error || 'Registration failed');
             }
         } catch (error) {
-            console.error('Registration error:', error);
-            this.showToast('Network error. Please try again.', 'error');
-        } finally {
-            this.showLoading(false);
+            console.error('Register error:', error);
+            this.showToast('Network error. Please try again.');
         }
     }
-
+    
+    async createDemoUser(phone, name) {
+        // Create demo user for testing
+        this.currentUser = {
+            userId: 'user_' + Date.now(),
+            username: phone.replace(/\D/g, ''),
+            name: name || 'User',
+            phone: phone,
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=25D366&color=fff`,
+            status: "Hey there! I'm using B-Messenger",
+            isOnline: true
+        };
+        
+        this.saveSession();
+        this.showMainApp();
+        this.initializeSocket();
+        this.loadInitialData();
+        
+        // Create demo contacts
+        this.createDemoContacts();
+    }
+    
+    saveSession() {
+        localStorage.setItem('bm_user', JSON.stringify(this.currentUser));
+    }
+    
+    checkSavedSession() {
+        const savedUser = localStorage.getItem('bm_user');
+        if (savedUser) {
+            try {
+                this.currentUser = JSON.parse(savedUser);
+                this.showMainApp();
+                this.initializeSocket();
+                this.loadInitialData();
+                this.createDemoContacts(); // For demo
+            } catch (e) {
+                localStorage.removeItem('bm_user');
+            }
+        }
+    }
+    
     logout() {
         if (this.socket) {
             this.socket.disconnect();
         }
         
-        localStorage.removeItem('bm_token');
         this.currentUser = null;
-        this.currentChat = null;
-        this.conversations = [];
-        this.users = [];
+        localStorage.removeItem('bm_user');
         
-        this.showLoginScreen();
-        this.showToast('Logged out successfully', 'success');
-    }
-
-    async initializeSocket() {
-        const token = localStorage.getItem('bm_token');
-        if (!token) return;
-
-        this.socket = io();
-
-        this.socket.on('connect', () => {
-            console.log('Connected to server');
-            this.socket.emit('authenticate', token);
-        });
-
-        this.socket.on('auth-error', (error) => {
-            console.error('Socket auth error:', error);
-            this.logout();
-        });
-
-        this.socket.on('user-status-changed', (data) => {
-            this.handleUserStatusChange(data);
-        });
-
-        this.socket.on('new-message', (message) => {
-            this.handleNewMessage(message);
-        });
-
-        this.socket.on('message-delivered', (data) => {
-            this.updateMessageStatus(data.messageId, 'delivered');
-        });
-
-        this.socket.on('message-read', (data) => {
-            this.updateMessageStatus(data.messageId, 'read');
-        });
-
-        this.socket.on('user-typing', (data) => {
-            this.handleTypingIndicator(data);
-        });
-
-        this.socket.on('conversations-updated', () => {
-            this.loadConversations();
-        });
-
-        this.socket.on('conversation-loaded', (data) => {
-            this.renderMessages(data.messages);
-        });
-    }
-
-    async loadInitialData() {
-        await this.loadConversations();
-        await this.loadAllUsers();
-    }
-
-    async loadConversations() {
-        try {
-            const token = localStorage.getItem('bm_token');
-            const response = await fetch('/api/conversations', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                this.conversations = data.conversations;
-                this.renderConversations();
-            }
-        } catch (error) {
-            console.error('Load conversations error:', error);
-        }
-    }
-
-    async loadAllUsers() {
-        try {
-            const token = localStorage.getItem('bm_token');
-            const response = await fetch('/api/users/all', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                this.users = data.users;
-            }
-        } catch (error) {
-            console.error('Load users error:', error);
-        }
-    }
-
-    renderConversations() {
-        const container = document.getElementById('conversations-list');
-        const chatCount = document.getElementById('chat-count');
+        this.hideSideMenu();
+        this.elements.mainApp.style.display = 'none';
+        this.elements.loginScreen.style.display = 'flex';
         
-        if (!container) return;
-
-        container.innerHTML = '';
-        chatCount.textContent = this.conversations.length;
-
-        if (this.conversations.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-comments"></i>
-                    <p>No conversations yet</p>
-                    <p>Start chatting with users!</p>
-                </div>
-            `;
-            return;
-        }
-
-        this.conversations.forEach(conv => {
-            const item = this.createConversationElement(conv);
-            container.appendChild(item);
-        });
+        // Reset form
+        this.elements.phoneInput.value = '';
+        this.elements.nameInput.value = '';
+        this.elements.passwordInput.value = '';
     }
-
-    createConversationElement(conv) {
-        const div = document.createElement('div');
-        div.className = `chat-item ${this.currentChat?.conversationId === conv.conversationId ? 'active' : ''}`;
-        div.dataset.id = conv.conversationId;
-
-        const lastMessage = conv.lastMessage;
-        const time = lastMessage ? this.formatTime(new Date(lastMessage.timestamp)) : '';
-        const preview = lastMessage ? this.getPreviewText(lastMessage) : 'No messages yet';
-        const unreadBadge = conv.unreadCount > 0 ? 
-            `<div class="chat-unread">${conv.unreadCount}</div>` : '';
-
-        div.innerHTML = `
-            <div class="chat-avatar">
-                <div class="chat-avatar-img">
-                    ${conv.partnerInfo?.avatar ? 
-                        `<img src="${conv.partnerInfo.avatar}" alt="${conv.partnerInfo.displayName}">` :
-                        `<span>${conv.partnerInfo?.displayName?.charAt(0) || 'U'}</span>`
-                    }
-                </div>
-                <div class="chat-status ${conv.partnerInfo?.isOnline ? 'online' : 'offline'}"></div>
-            </div>
-            <div class="chat-info">
-                <div class="chat-header">
-                    <div class="chat-name">${conv.partnerInfo?.displayName || conv.partner}</div>
-                    <div class="chat-time">${time}</div>
-                </div>
-                <div class="chat-preview">
-                    <div class="chat-message">${preview}</div>
-                    ${unreadBadge}
-                </div>
-            </div>
-        `;
-
-        div.addEventListener('click', () => this.openChat(conv));
-        return div;
-    }
-
-    getPreviewText(message) {
-        const prefix = message.sender === this.currentUser.username ? 'You: ' : '';
-        return prefix + (message.content || message.text || '').substring(0, 50) + 
-               ((message.content || message.text || '').length > 50 ? '...' : '');
-    }
-
-    formatTime(date) {
-        const now = new Date();
-        const diff = now - date;
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        
-        if (days === 0) {
-            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } else if (days === 1) {
-            return 'Yesterday';
-        } else if (days < 7) {
-            return date.toLocaleDateString([], { weekday: 'short' });
-        } else {
-            return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-        }
-    }
-
-    async openChat(conversation) {
-        this.currentChat = conversation;
-        
-        // Update UI
-        document.getElementById('welcome-screen').style.display = 'none';
-        document.getElementById('message-input-container').style.display = 'flex';
-        
-        // Update chat header
-        document.getElementById('chat-user-name').textContent = 
-            conversation.partnerInfo?.displayName || conversation.partner;
-        
-        const chatAvatar = document.getElementById('chat-avatar-img');
-        if (conversation.partnerInfo?.avatar) {
-            chatAvatar.src = conversation.partnerInfo.avatar;
-            chatAvatar.alt = conversation.partnerInfo.displayName;
-            chatAvatar.style.display = 'block';
-        } else {
-            chatAvatar.style.display = 'none';
-            const avatarDiv = document.querySelector('#chat-user-avatar');
-            if (avatarDiv) {
-                const textSpan = document.createElement('span');
-                textSpan.textContent = conversation.partnerInfo?.displayName?.charAt(0) || 'U';
-                textSpan.style.color = 'white';
-                textSpan.style.fontSize = '18px';
-                textSpan.style.fontWeight = '500';
-                avatarDiv.innerHTML = '';
-                avatarDiv.appendChild(textSpan);
-            }
-        }
-        
-        document.getElementById('chat-user-status').textContent = 
-            conversation.partnerInfo?.isOnline ? 'online' : 'last seen recently';
-        
-        // Load messages
-        await this.loadMessages(conversation.conversationId);
-        
-        // Join conversation room
-        if (this.socket) {
-            this.socket.emit('join-conversation', {
-                conversationId: conversation.conversationId,
-                username: this.currentUser.username
-            });
-        }
-        
-        // Update active state in list
-        document.querySelectorAll('.chat-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        document.querySelector(`.chat-item[data-id="${conversation.conversationId}"]`)?.classList.add('active');
-    }
-
-    async loadMessages(conversationId) {
-        try {
-            const token = localStorage.getItem('bm_token');
-            const response = await fetch(`/api/messages/${conversationId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                this.renderMessages(data.messages);
-            }
-        } catch (error) {
-            console.error('Load messages error:', error);
-        }
-    }
-
-    renderMessages(messages) {
-        const container = document.getElementById('messages-container');
-        container.innerHTML = '';
-
-        // Keep welcome screen hidden if we have messages
-        document.getElementById('welcome-screen').style.display = 'none';
-
-        if (messages.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-comment"></i>
-                    <p>No messages yet</p>
-                    <p>Send a message to start the conversation!</p>
-                </div>
-            `;
-            return;
-        }
-
-        let lastDate = null;
-        
-        messages.forEach(msg => {
-            const msgDate = new Date(msg.timestamp).toDateString();
+    
+    // ===== UI MANAGEMENT =====
+    showMainApp() {
+        this.elements.loadingScreen.style.animation = 'fadeOut 0.5s ease forwards';
+        setTimeout(() => {
+            this.elements.loadingScreen.style.display = 'none';
+            this.elements.loginScreen.style.display = 'none';
+            this.elements.mainApp.style.display = 'flex';
             
-            if (msgDate !== lastDate) {
-                lastDate = msgDate;
-                const dateDiv = document.createElement('div');
-                dateDiv.className = 'message-date';
-                dateDiv.innerHTML = `<div class="date-label">${this.formatDate(new Date(msg.timestamp))}</div>`;
-                container.appendChild(dateDiv);
-            }
-
-            const messageEl = this.createMessageElement(msg);
-            container.appendChild(messageEl);
-        });
-
-        // Add typing indicator at the end
-        const typingEl = document.createElement('div');
-        typingEl.className = 'typing-indicator';
-        typingEl.id = 'typing-indicator';
-        typingEl.style.display = 'none';
-        typingEl.innerHTML = `
-            <div class="typing-dots">
-                <div class="dot"></div>
-                <div class="dot"></div>
-                <div class="dot"></div>
-            </div>
-            <span id="typing-user">is typing...</span>
-        `;
-        container.appendChild(typingEl);
-
-        // Scroll to bottom
-        container.scrollTop = container.scrollHeight;
-    }
-
-    createMessageElement(message) {
-        const div = document.createElement('div');
-        const isSent = message.sender === this.currentUser.username;
-        const isSystem = message.type === 'system';
-        
-        div.className = `message ${isSystem ? 'system' : isSent ? 'sent' : 'received'}`;
-        div.dataset.id = message._id;
-
-        const time = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
-        let statusIcon = '<i class="fas fa-check"></i>';
-        if (isSent) {
-            if (message.read) {
-                statusIcon = '<i class="fas fa-check-double read"></i>';
-            } else if (message.delivered) {
-                statusIcon = '<i class="fas fa-check-double"></i>';
-            }
-        }
-
-        div.innerHTML = `
-            <div class="message-text">${message.text || message.content || ''}</div>
-            <div class="message-time">
-                ${time}
-                ${isSent ? `<span class="message-status">${statusIcon}</span>` : ''}
-            </div>
-        `;
-
-        return div;
-    }
-
-    formatDate(date) {
-        const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        
-        if (date.toDateString() === today.toDateString()) {
-            return 'Today';
-        } else if (date.toDateString() === yesterday.toDateString()) {
-            return 'Yesterday';
-        } else {
-            return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-        }
-    }
-
-    handleMessageInput() {
-        const input = document.getElementById('message-input');
-        const sendBtn = document.getElementById('send-button');
-        const voiceBtn = document.getElementById('voice-button');
-        
-        const hasText = input.value.trim().length > 0;
-        
-        sendBtn.style.display = hasText ? 'flex' : 'none';
-        voiceBtn.style.display = hasText ? 'none' : 'flex';
-        
-        // Auto-resize
-        input.style.height = 'auto';
-        input.style.height = Math.min(input.scrollHeight, 100) + 'px';
-        
-        // Typing indicator
-        if (hasText && this.currentChat && this.socket) {
-            this.socket.emit('typing-start', {
-                conversationId: this.currentChat.conversationId,
-                username: this.currentUser.username
-            });
+            // Update user info in menu
+            this.updateUserInfo();
             
-            clearTimeout(this.typingTimeout);
-            this.typingTimeout = setTimeout(() => {
-                this.socket.emit('typing-stop', {
-                    conversationId: this.currentChat.conversationId,
-                    username: this.currentUser.username
-                });
-            }, 2000);
-        }
+            // Load chats
+            this.loadChats();
+        }, 500);
     }
-
-    handleKeyPress(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            this.sendMessage();
-        }
-    }
-
-    async sendMessage() {
-        const input = document.getElementById('message-input');
-        const content = input.value.trim();
-        
-        if (!content || !this.currentChat || !this.socket) return;
-
-        // Create temporary message
-        const tempMessage = {
-            _id: 'temp-' + Date.now(),
-            text: content,
-            sender: this.currentUser.username,
-            timestamp: new Date(),
-            read: false,
-            delivered: false
-        };
-
-        this.addMessageToChat(tempMessage);
-        
-        // Send via socket
-        this.socket.emit('send-message', {
-            sender: this.currentUser.username,
-            receiver: this.currentChat.partner,
-            text: content,
-            conversationId: this.currentChat.conversationId
-        }, (response) => {
-            if (response && response.success) {
-                // Replace temp message with real one
-                const tempEl = document.querySelector(`[data-id="${tempMessage._id}"]`);
-                if (tempEl && response.messageId) {
-                    tempEl.dataset.id = response.messageId;
-                    this.updateMessageStatus(response.messageId, 'sent');
-                }
-            } else if (response && response.error) {
-                // Remove temp message on error
-                const tempEl = document.querySelector(`[data-id="${tempMessage._id}"]`);
-                if (tempEl) {
-                    tempEl.remove();
-                }
-                this.showToast('Failed to send message: ' + response.error, 'error');
-            }
-        });
-
-        // Clear input
-        input.value = '';
-        input.style.height = 'auto';
-        this.handleMessageInput();
-        
-        // Stop typing
-        if (this.socket) {
-            this.socket.emit('typing-stop', {
-                conversationId: this.currentChat.conversationId,
-                username: this.currentUser.username
-            });
-        }
-    }
-
-    addMessageToChat(message) {
-        const container = document.getElementById('messages-container');
-        const messageEl = this.createMessageElement(message);
-        
-        // Add before typing indicator
-        const typingIndicator = document.getElementById('typing-indicator');
-        if (typingIndicator) {
-            container.insertBefore(messageEl, typingIndicator);
-        } else {
-            container.appendChild(messageEl);
-        }
-        
-        // Scroll to bottom
-        container.scrollTop = container.scrollHeight;
-    }
-
-    handleNewMessage(message) {
-        if (this.currentChat && this.currentChat.conversationId === message.conversationId) {
-            this.addMessageToChat(message);
-        }
-        
-        // Update conversation list
-        this.loadConversations();
-    }
-
-    updateMessageStatus(messageId, status) {
-        const messageEl = document.querySelector(`[data-id="${messageId}"]`);
-        if (!messageEl) return;
-        
-        const statusEl = messageEl.querySelector('.message-status');
-        if (!statusEl) return;
-        
-        if (status === 'delivered') {
-            statusEl.innerHTML = '<i class="fas fa-check-double"></i>';
-        } else if (status === 'read') {
-            statusEl.innerHTML = '<i class="fas fa-check-double read"></i>';
-        }
-    }
-
-    handleTypingIndicator(data) {
-        const indicator = document.getElementById('typing-indicator');
-        
-        if (data.isTyping && data.username !== this.currentUser.username) {
-            indicator.style.display = 'flex';
-            document.getElementById('typing-user').textContent = `${data.username} is typing...`;
-            
-            clearTimeout(this.typingHideTimeout);
-            this.typingHideTimeout = setTimeout(() => {
-                indicator.style.display = 'none';
-            }, 3000);
-        } else {
-            indicator.style.display = 'none';
-        }
-    }
-
-    handleUserStatusChange(data) {
-        if (data.username === this.currentUser.username) return;
-        
-        if (data.isOnline) {
-            this.onlineUsers.add(data.username);
-        } else {
-            this.onlineUsers.delete(data.username);
-        }
-        
-        // Update UI
-        this.updateOnlineStatus(data.username, data.isOnline);
-    }
-
-    updateOnlineStatus(username, isOnline) {
-        // Update in chat list
-        document.querySelectorAll('.chat-item').forEach(item => {
-            const conv = this.conversations.find(c => c.conversationId === item.dataset.id);
-            if (conv && conv.partner === username) {
-                const statusDot = item.querySelector('.chat-status');
-                if (statusDot) {
-                    statusDot.className = `chat-status ${isOnline ? 'online' : 'offline'}`;
-                }
-            }
+    
+    switchTab(tabName) {
+        // Update active tab
+        this.elements.navTabs.forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.tab === tabName);
         });
         
-        // Update in current chat
-        if (this.currentChat && this.currentChat.partner === username) {
-            const statusText = isOnline ? 'online' : 'last seen recently';
-            document.getElementById('chat-user-status').textContent = statusText;
+        // Update header title
+        this.elements.headerTitle.textContent = tabName.charAt(0).toUpperCase() + tabName.slice(1);
+        
+        // Show active content
+        Object.keys(this.elements.tabContents).forEach(key => {
+            this.elements.tabContents[key].classList.toggle('active', key === tabName);
+        });
+        
+        // Hide search if open
+        this.hideSearch();
+        
+        // Load data for tab
+        switch(tabName) {
+            case 'status':
+                this.loadStatus();
+                break;
+            case 'calls':
+                this.loadCalls();
+                break;
         }
     }
-
-    async handleSearch(query) {
-        const searchClear = document.getElementById('search-clear');
+    
+    toggleSearch() {
+        this.elements.searchBar.classList.toggle('active');
+        if (this.elements.searchBar.classList.contains('active')) {
+            this.elements.globalSearch.focus();
+        }
+    }
+    
+    hideSearch() {
+        this.elements.searchBar.classList.remove('active');
+        this.elements.globalSearch.value = '';
+        this.elements.searchClear.classList.remove('active');
+        this.handleSearch(''); // Reset chat list
+    }
+    
+    handleSearch(query) {
+        this.elements.searchClear.classList.toggle('active', query.length > 0);
         
         if (!query) {
-            searchClear.style.display = 'none';
-            this.renderConversations();
+            this.loadChats();
             return;
         }
         
-        searchClear.style.display = 'block';
-
+        // Filter chats
+        const filteredChats = this.chats.filter(chat => 
+            chat.name.toLowerCase().includes(query.toLowerCase()) ||
+            chat.lastMessage.text.toLowerCase().includes(query.toLowerCase())
+        );
+        
+        this.renderChats(filteredChats);
+    }
+    
+    clearSearch() {
+        this.elements.globalSearch.value = '';
+        this.elements.searchClear.classList.remove('active');
+        this.handleSearch('');
+        this.elements.globalSearch.focus();
+    }
+    
+    toggleSideMenu() {
+        this.elements.sideMenu.classList.toggle('active');
+        document.body.style.overflow = this.elements.sideMenu.classList.contains('active') ? 'hidden' : '';
+    }
+    
+    hideSideMenu() {
+        this.elements.sideMenu.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    
+    showNewChatModal() {
+        this.elements.newChatModal.classList.add('active');
+        this.loadContacts();
+    }
+    
+    hideNewChatModal() {
+        this.elements.newChatModal.classList.remove('active');
+        this.elements.contactSearch.value = '';
+        this.searchContacts('');
+    }
+    
+    searchContacts(query) {
+        if (!query) {
+            this.loadContacts();
+            return;
+        }
+        
+        const filteredContacts = this.contacts.filter(contact => 
+            contact.name.toLowerCase().includes(query.toLowerCase()) ||
+            contact.phone.includes(query)
+        );
+        
+        this.renderContacts(filteredContacts);
+    }
+    
+    // ===== CHAT MANAGEMENT =====
+    async loadChats() {
+        if (!this.currentUser) return;
+        
+        // Show loading shimmer
+        this.elements.chatsList.innerHTML = `
+            ${Array(5).fill().map(() => `
+                <div class="chat-item loading-shimmer">
+                    <div class="chat-avatar">
+                        <div class="avatar-img" style="background: transparent;"></div>
+                    </div>
+                    <div class="chat-info">
+                        <div class="chat-header">
+                            <div class="chat-name" style="background: var(--border-color); height: 16px; width: 60%; border-radius: 8px;"></div>
+                            <div class="chat-time" style="background: var(--border-color); height: 12px; width: 40px; border-radius: 6px;"></div>
+                        </div>
+                        <div class="chat-preview">
+                            <div class="chat-message" style="background: var(--border-color); height: 14px; width: 80%; border-radius: 7px;"></div>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        `;
+        
         try {
-            const token = localStorage.getItem('bm_token');
-            const response = await fetch(`/api/users/search?query=${encodeURIComponent(query)}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
+            if (this.socket) {
+                // Load from server
+                const response = await fetch(`/api/chats/${this.currentUser.userId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.chats = result.chats;
                 }
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                this.renderSearchResults(data.users);
             }
+            
+            // If no chats from server or for demo, use local chats
+            if (!this.chats || this.chats.length === 0) {
+                this.createDemoChats();
+            }
+            
+            this.renderChats(this.chats);
+            
         } catch (error) {
-            console.error('Search error:', error);
+            console.error('Load chats error:', error);
+            this.createDemoChats();
+            this.renderChats(this.chats);
         }
     }
-
-    clearSearch() {
-        document.getElementById('search-input').value = '';
-        document.getElementById('search-clear').style.display = 'none';
-        this.renderConversations();
-    }
-
-    renderSearchResults(users) {
-        const container = document.getElementById('conversations-list');
-        container.innerHTML = '';
-
-        if (users.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-search"></i>
-                    <p>No users found</p>
+    
+    renderChats(chats) {
+        if (chats.length === 0) {
+            this.elements.chatsList.innerHTML = `
+                <div style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
+                    <i class="fas fa-comments" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                    <p>No conversations yet</p>
+                    <p style="font-size: 14px; margin-top: 8px;">Start a new chat to begin messaging!</p>
                 </div>
             `;
             return;
         }
-
-        users.forEach(user => {
-            const div = document.createElement('div');
-            div.className = 'chat-item';
-            
-            div.innerHTML = `
-                <div class="chat-avatar">
-                    <div class="chat-avatar-img">
-                        ${user.avatar ? 
-                            `<img src="${user.avatar}" alt="${user.displayName}">` :
-                            `<span>${user.displayName?.charAt(0) || 'U'}</span>`
-                        }
+        
+        this.elements.chatsList.innerHTML = chats.map(chat => `
+            <div class="chat-item" data-chat-id="${chat.id}" data-user-id="${chat.userId}">
+                <div class="chat-avatar" onclick="event.stopPropagation(); app.viewUserProfile('${chat.userId}')">
+                    <div class="avatar-img">
+                        ${chat.avatar ? `<img src="${chat.avatar}" alt="${chat.name}">` : chat.name.charAt(0)}
                     </div>
-                    <div class="chat-status ${user.isOnline ? 'online' : 'offline'}"></div>
+                    ${chat.isOnline ? '<div class="online-dot"></div>' : ''}
+                </div>
+                <div class="chat-info" onclick="app.openChat('${chat.userId}', '${chat.name}', '${chat.avatar}')">
+                    <div class="chat-header">
+                        <div class="chat-name">${chat.name}</div>
+                        <div class="chat-time">${this.formatTime(chat.timestamp)}</div>
+                    </div>
+                    <div class="chat-preview">
+                        <div class="chat-message">
+                            ${chat.lastMessage.sender === 'You' ? '<span style="color: var(--text-muted);">You: </span>' : ''}
+                            ${chat.lastMessage.text}
+                        </div>
+                        ${chat.unreadCount > 0 ? `<div class="chat-badge">${chat.unreadCount}</div>` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    openChat(userId, userName, userAvatar) {
+        this.currentChat = { userId, userName, userAvatar };
+        this.conversationId = [this.currentUser.userId, userId].sort().join('_');
+        
+        // Update chat header
+        this.elements.chatUserName.textContent = userName;
+        this.elements.chatAvatar.innerHTML = `
+            <div class="avatar-img">
+                ${userAvatar ? `<img src="${userAvatar}" alt="${userName}">` : userName.charAt(0)}
+            </div>
+        `;
+        
+        // Show chat screen
+        this.elements.chatScreen.classList.add('active');
+        
+        // Load messages
+        this.loadMessages();
+        
+        // Join socket room
+        if (this.socket) {
+            this.socket.emit('join-chat', {
+                conversationId: this.conversationId,
+                userId: this.currentUser.userId
+            });
+        }
+    }
+    
+    closeChat() {
+        this.elements.chatScreen.classList.remove('active');
+        this.currentChat = null;
+        this.conversationId = null;
+        this.elements.messagesContainer.innerHTML = '';
+        this.elements.chatMessageInput.value = '';
+        this.handleInputChange(this.elements.chatMessageInput, 'chat');
+    }
+    
+    async loadMessages() {
+        if (!this.currentChat || !this.conversationId) return;
+        
+        this.elements.messagesContainer.innerHTML = `
+            <div class="typing-indicator" id="typing-indicator">
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            </div>
+        `;
+        
+        try {
+            let messages = [];
+            
+            if (this.socket) {
+                // Load from server
+                const response = await fetch(`/api/messages/${this.conversationId}?userId=${this.currentUser.userId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    messages = result.messages;
+                }
+            }
+            
+            // If no messages from server, create demo messages
+            if (messages.length === 0) {
+                messages = this.createDemoMessages();
+            }
+            
+            this.renderMessages(messages);
+            
+        } catch (error) {
+            console.error('Load messages error:', error);
+            const demoMessages = this.createDemoMessages();
+            this.renderMessages(demoMessages);
+        }
+    }
+    
+    renderMessages(messages) {
+        if (messages.length === 0) {
+            this.elements.messagesContainer.innerHTML = `
+                <div style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
+                    <i class="fas fa-comment" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                    <p>No messages yet</p>
+                    <p style="font-size: 14px; margin-top: 8px;">Send a message to start the conversation!</p>
+                </div>
+                <div class="typing-indicator" id="typing-indicator">
+                    <div class="typing-dots">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        // Group messages by date
+        let currentDate = null;
+        let html = '';
+        
+        messages.forEach(message => {
+            const messageDate = this.formatDate(message.time);
+            
+            if (messageDate !== currentDate) {
+                currentDate = messageDate;
+                html += `
+                    <div class="message-date" style="text-align: center; margin: 16px 0;">
+                        <span style="background: rgba(0,0,0,0.1); color: var(--text-secondary); font-size: 12px; padding: 4px 12px; border-radius: 12px;">
+                            ${currentDate}
+                        </span>
+                    </div>
+                `;
+            }
+            
+            html += `
+                <div class="message ${message.isSent ? 'sent' : 'received'}" data-message-id="${message.id}">
+                    <div class="message-text">${message.text}</div>
+                    <div class="message-time">
+                        ${this.formatTime(message.time)}
+                        ${message.isSent ? `
+                            <span class="message-status">
+                                <span class="${message.isRead ? 'read' : message.isDelivered ? 'delivered' : 'sent'}">
+                                    ${message.isRead ? '✓✓' : message.isDelivered ? '✓✓' : '✓'}
+                                </span>
+                            </span>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        
+        // Add typing indicator at the end
+        html += `
+            <div class="typing-indicator" id="typing-indicator">
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            </div>
+        `;
+        
+        this.elements.messagesContainer.innerHTML = html;
+        this.scrollToBottom();
+    }
+    
+    addMessage(text, isSent = true, isRead = false, isDelivered = false) {
+        const message = {
+            id: 'msg_' + Date.now(),
+            text,
+            isSent,
+            time: new Date(),
+            isRead,
+            isDelivered
+        };
+        
+        // Create message element
+        const messageEl = document.createElement('div');
+        messageEl.className = `message ${isSent ? 'sent' : 'received'}`;
+        messageEl.dataset.messageId = message.id;
+        messageEl.innerHTML = `
+            <div class="message-text">${text}</div>
+            <div class="message-time">
+                ${this.formatTime(message.time)}
+                ${isSent ? `
+                    <span class="message-status">
+                        <span class="${isRead ? 'read' : isDelivered ? 'delivered' : 'sent'}">
+                            ${isRead ? '✓✓' : isDelivered ? '✓✓' : '✓'}
+                        </span>
+                    </span>
+                ` : ''}
+            </div>
+        `;
+        
+        // Insert before typing indicator
+        const typingIndicator = this.elements.typingIndicator;
+        this.elements.messagesContainer.insertBefore(messageEl, typingIndicator);
+        
+        // Scroll to bottom
+        this.scrollToBottom();
+        
+        return message;
+    }
+    
+    sendMessage(source) {
+        let input, button;
+        
+        if (source === 'main') {
+            input = this.elements.messageInput;
+            button = this.elements.sendButton;
+        } else {
+            input = this.elements.chatMessageInput;
+            button = this.elements.chatSendButton;
+        }
+        
+        const text = input.value.trim();
+        if (!text || !this.currentChat) return;
+        
+        // Add message locally
+        const message = this.addMessage(text, true, false, false);
+        
+        // Send via socket
+        if (this.socket) {
+            this.socket.emit('send-message', {
+                senderId: this.currentUser.userId,
+                receiverId: this.currentChat.userId,
+                text: text
+            }, (response) => {
+                if (response && response.error) {
+                    console.error('Send failed:', response.error);
+                    // Show error
+                    this.showToast('Failed to send message');
+                } else {
+                    // Update message status
+                    const messageEl = document.querySelector(`[data-message-id="${message.id}"]`);
+                    if (messageEl) {
+                        const statusEl = messageEl.querySelector('.message-status span');
+                        if (statusEl) {
+                            statusEl.className = 'delivered';
+                            statusEl.textContent = '✓✓';
+                        }
+                    }
+                    
+                    // Update chat list
+                    this.updateChatList(this.currentChat.userId, text);
+                }
+            });
+        } else {
+            // For demo without socket
+            setTimeout(() => {
+                const messageEl = document.querySelector(`[data-message-id="${message.id}"]`);
+                if (messageEl) {
+                    const statusEl = messageEl.querySelector('.message-status span');
+                    if (statusEl) {
+                        statusEl.className = 'delivered';
+                        statusEl.textContent = '✓✓';
+                    }
+                }
+                
+                // Simulate reply after 1 second
+                setTimeout(() => {
+                    this.addMessage("Thanks for your message!", false, false, true);
+                }, 1000);
+                
+                // Update chat list
+                this.updateChatList(this.currentChat.userId, text);
+            }, 500);
+        }
+        
+        // Clear input
+        input.value = '';
+        this.handleInputChange(input, source);
+        
+        // Stop typing indicator
+        if (this.isTyping) {
+            this.sendTyping(false);
+        }
+    }
+    
+    updateChatList(userId, lastMessage) {
+        // Update the chat in our local list
+        const chatIndex = this.chats.findIndex(chat => chat.userId === userId);
+        if (chatIndex !== -1) {
+            this.chats[chatIndex].lastMessage = {
+                text: lastMessage,
+                sender: 'You',
+                time: new Date()
+            };
+            this.chats[chatIndex].timestamp = new Date();
+            this.chats[chatIndex].unreadCount = 0;
+            
+            // Move to top
+            const chat = this.chats.splice(chatIndex, 1)[0];
+            this.chats.unshift(chat);
+            
+            // Re-render if on chats tab
+            if (this.elements.tabContents.chats.classList.contains('active')) {
+                this.renderChats(this.chats);
+            }
+        }
+    }
+    
+    handleInputChange(input, source) {
+        const hasText = input.value.trim().length > 0;
+        let button;
+        
+        if (source === 'main') {
+            button = this.elements.sendButton;
+        } else {
+            button = this.elements.chatSendButton;
+        }
+        
+        // Update button icon
+        if (hasText) {
+            button.innerHTML = '<i class="fas fa-paper-plane"></i>';
+            button.style.background = 'var(--whatsapp-green)';
+        } else {
+            button.innerHTML = '<i class="fas fa-microphone"></i>';
+            button.style.background = 'var(--whatsapp-green)';
+        }
+        
+        // Handle typing indicators
+        if (source === 'chat' && this.currentChat && this.socket) {
+            if (hasText && !this.isTyping) {
+                this.sendTyping(true);
+                this.isTyping = true;
+            } else if (!hasText && this.isTyping) {
+                this.sendTyping(false);
+                this.isTyping = false;
+            }
+            
+            // Clear previous timeout
+            clearTimeout(this.typingTimeout);
+            
+            // Set timeout to stop typing indicator
+            if (hasText) {
+                this.typingTimeout = setTimeout(() => {
+                    if (this.isTyping) {
+                        this.sendTyping(false);
+                        this.isTyping = false;
+                    }
+                }, 2000);
+            }
+        }
+    }
+    
+    sendTyping(isTyping) {
+        if (!this.socket || !this.currentChat || !this.conversationId) return;
+        
+        this.socket.emit('typing', {
+            conversationId: this.conversationId,
+            userId: this.currentUser.userId,
+            isTyping: isTyping
+        });
+    }
+    
+    // ===== CONTACTS =====
+    async loadContacts() {
+        // For demo, create contacts if none exist
+        if (this.contacts.length === 0) {
+            this.createDemoContacts();
+        }
+        
+        this.renderContacts(this.contacts);
+    }
+    
+    renderContacts(contacts) {
+        if (contacts.length === 0) {
+            this.elements.contactsList.innerHTML = `
+                <div style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
+                    <i class="fas fa-users" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                    <p>No contacts found</p>
+                </div>
+            `;
+            return;
+        }
+        
+        this.elements.contactsList.innerHTML = contacts.map(contact => `
+            <div class="chat-item" onclick="app.startChatWithContact('${contact.userId}', '${contact.name}', '${contact.avatar}')">
+                <div class="chat-avatar">
+                    <div class="avatar-img">
+                        ${contact.avatar ? `<img src="${contact.avatar}" alt="${contact.name}">` : contact.name.charAt(0)}
+                    </div>
+                    ${contact.isOnline ? '<div class="online-dot"></div>' : ''}
                 </div>
                 <div class="chat-info">
                     <div class="chat-header">
-                        <div class="chat-name">${user.displayName || user.username}</div>
-                        <div class="chat-time">${user.isOnline ? 'Online' : 'Offline'}</div>
+                        <div class="chat-name">${contact.name}</div>
                     </div>
                     <div class="chat-preview">
-                        <div class="chat-message">@${user.username}</div>
-                    </div>
-                </div>
-            `;
-
-            div.addEventListener('click', () => this.startChatWithUser(user));
-            container.appendChild(div);
-        });
-    }
-
-    async startChatWithUser(user) {
-        try {
-            const token = localStorage.getItem('bm_token');
-            const response = await fetch('/api/conversations/start', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username: user.username })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                const conversation = {
-                    conversationId: data.conversationId,
-                    partner: user.username,
-                    partnerInfo: {
-                        username: user.username,
-                        displayName: user.displayName,
-                        avatar: user.avatar,
-                        isOnline: user.isOnline
-                    },
-                    unreadCount: 0,
-                    lastMessage: data.message
-                };
-
-                this.conversations.unshift(conversation);
-                this.renderConversations();
-                this.openChat(conversation);
-                
-                // Hide new chat modal if open
-                this.hideModal('new-chat-modal');
-            }
-        } catch (error) {
-            console.error('Start chat error:', error);
-            this.showToast('Failed to start chat', 'error');
-        }
-    }
-
-    closeChat() {
-        this.currentChat = null;
-        document.getElementById('welcome-screen').style.display = 'flex';
-        document.getElementById('message-input-container').style.display = 'none';
-        document.getElementById('messages-container').innerHTML = `
-            <div class="welcome-screen" id="welcome-screen">
-                <div class="welcome-icon">
-                    <i class="fas fa-comments"></i>
-                </div>
-                <h2>Welcome to B MESSENGER</h2>
-                <p>Select a chat to start messaging or search for users to begin new conversations.</p>
-                <div class="welcome-features">
-                    <div class="feature">
-                        <i class="fas fa-bolt"></i>
-                        <span>Real-time messaging</span>
-                    </div>
-                    <div class="feature">
-                        <i class="fas fa-search"></i>
-                        <span>Global user search</span>
-                    </div>
-                    <div class="feature">
-                        <i class="fas fa-shield-alt"></i>
-                        <span>End-to-end encryption</span>
-                    </div>
-                    <div class="feature">
-                        <i class="fas fa-users"></i>
-                        <span>Group chats</span>
+                        <div class="chat-message">${contact.status || 'Hey there! I\'m using B-Messenger'}</div>
                     </div>
                 </div>
             </div>
-        `;
+        `).join('');
+    }
+    
+    startChatWithContact(userId, userName, userAvatar) {
+        this.hideNewChatModal();
         
-        // Update active state
-        document.querySelectorAll('.chat-item').forEach(item => {
-            item.classList.remove('active');
-        });
-    }
-
-    // Modal Functions
-    showModal(modalId) {
-        document.getElementById(modalId).classList.add('active');
-    }
-
-    hideModal(modalId) {
-        document.getElementById(modalId).classList.remove('active');
-    }
-
-    showNewChatModal() {
-        this.showModal('new-chat-modal');
-        this.renderUsersForNewChat();
-    }
-
-    renderUsersForNewChat() {
-        const container = document.getElementById('new-chat-users');
-        container.innerHTML = '';
-
-        this.users.forEach(user => {
-            const div = document.createElement('div');
-            div.className = 'user-list-item';
-            
-            div.innerHTML = `
-                <div class="user-list-avatar">
-                    ${user.avatar ? 
-                        `<img src="${user.avatar}" alt="${user.displayName}">` :
-                        `<span>${user.displayName?.charAt(0) || 'U'}</span>`
-                    }
-                </div>
-                <div class="user-list-info">
-                    <div class="user-list-name">${user.displayName || user.username}</div>
-                    <div class="user-list-username">@${user.username}</div>
-                    <div class="user-list-status ${user.isOnline ? 'online' : ''}">
-                        ${user.isOnline ? '● Online' : '○ Offline'}
-                    </div>
-                </div>
-            `;
-
-            div.addEventListener('click', () => {
-                this.startChatWithUser(user);
-            });
-            
-            container.appendChild(div);
-        });
-    }
-
-    showNewGroupModal() {
-        this.showModal('new-group-modal');
-        this.renderUsersForGroup();
-    }
-
-    renderUsersForGroup() {
-        const container = document.getElementById('group-users-list');
-        container.innerHTML = '';
-
-        this.users.forEach(user => {
-            const div = document.createElement('div');
-            div.className = 'user-list-item';
-            div.dataset.username = user.username;
-            
-            div.innerHTML = `
-                <div class="user-list-avatar">
-                    ${user.avatar ? 
-                        `<img src="${user.avatar}" alt="${user.displayName}">` :
-                        `<span>${user.displayName?.charAt(0) || 'U'}</span>`
-                    }
-                </div>
-                <div class="user-list-info">
-                    <div class="user-list-name">${user.displayName || user.username}</div>
-                    <div class="user-list-username">@${user.username}</div>
-                    <div class="user-list-status ${user.isOnline ? 'online' : ''}">
-                        ${user.isOnline ? '● Online' : '○ Offline'}
-                    </div>
-                </div>
-                <input type="checkbox" class="user-checkbox" onchange="app.toggleUserSelection('${user.username}', this.checked)">
-            `;
-            
-            container.appendChild(div);
-        });
-    }
-
-    toggleUserSelection(username, selected) {
-        const selectedUsers = document.getElementById('selected-users');
-        
-        if (selected) {
-            const user = this.users.find(u => u.username === username);
-            if (user) {
-                const userDiv = document.createElement('div');
-                userDiv.className = 'selected-user';
-                userDiv.dataset.username = username;
-                userDiv.innerHTML = `
-                    ${user.displayName || user.username}
-                    <button class="remove-user" onclick="app.removeSelectedUser('${username}')">
-                        <i class="fas fa-times"></i>
-                    </button>
-                `;
-                selectedUsers.appendChild(userDiv);
-            }
+        // Check if chat already exists
+        const existingChat = this.chats.find(chat => chat.userId === userId);
+        if (existingChat) {
+            this.openChat(userId, userName, userAvatar);
         } else {
-            const userDiv = selectedUsers.querySelector(`[data-username="${username}"]`);
-            if (userDiv) {
-                userDiv.remove();
-            }
-        }
-    }
-
-    removeSelectedUser(username) {
-        this.toggleUserSelection(username, false);
-        const checkbox = document.querySelector(`.user-checkbox[onchange*="${username}"]`);
-        if (checkbox) {
-            checkbox.checked = false;
-        }
-    }
-
-    async createGroup() {
-        const groupName = document.getElementById('group-name').value.trim();
-        const selectedUsers = Array.from(document.querySelectorAll('.selected-user'))
-            .map(div => div.dataset.username);
-
-        if (!groupName) {
-            this.showToast('Please enter a group name', 'error');
-            return;
-        }
-
-        if (selectedUsers.length === 0) {
-            this.showToast('Please select at least one participant', 'error');
-            return;
-        }
-
-        try {
-            const token = localStorage.getItem('bm_token');
-            const response = await fetch('/api/groups/create', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+            // Create new chat
+            const newChat = {
+                id: [this.currentUser.userId, userId].sort().join('_'),
+                userId,
+                name: userName,
+                avatar: userAvatar,
+                lastMessage: {
+                    text: '',
+                    sender: '',
+                    time: new Date()
                 },
-                body: JSON.stringify({ 
-                    name: groupName, 
-                    participants: selectedUsers 
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                this.showToast('Group created successfully!', 'success');
-                this.hideModal('new-group-modal');
-                
-                // Clear form
-                document.getElementById('group-name').value = '';
-                document.getElementById('selected-users').innerHTML = '';
-                
-                // Reload conversations
-                this.loadConversations();
-            } else {
-                this.showToast(data.error || 'Failed to create group', 'error');
-            }
-        } catch (error) {
-            console.error('Create group error:', error);
-            this.showToast('Failed to create group', 'error');
+                unreadCount: 0,
+                timestamp: new Date(),
+                isOnline: true
+            };
+            
+            this.chats.unshift(newChat);
+            this.renderChats(this.chats);
+            this.openChat(userId, userName, userAvatar);
         }
     }
-
-    showProfileModal() {
-        this.showModal('profile-modal');
-        this.loadProfileData();
+    
+    // ===== STATUS =====
+    async loadStatus() {
+        // For demo, create status updates
+        this.renderStatus(this.createDemoStatus());
     }
-
-    async loadProfileData() {
-        try {
-            const token = localStorage.getItem('bm_token');
-            const response = await fetch('/api/settings', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                const user = data.user;
-                
-                document.getElementById('profile-display-name').textContent = user.displayName || user.username;
-                document.getElementById('profile-status').textContent = user.status || "Hey there! I'm using B MESSENGER";
-                document.getElementById('profile-username').textContent = user.username;
-                document.getElementById('profile-email').textContent = user.email || 'Not provided';
-                document.getElementById('profile-bio').textContent = user.bio || 'No bio yet';
-                document.getElementById('profile-joined').textContent = new Date(user.createdAt).toLocaleDateString();
-                
-                const avatarImg = document.getElementById('profile-avatar-img');
-                if (user.avatar && user.avatar.startsWith('http')) {
-                    avatarImg.src = user.avatar;
-                    avatarImg.alt = user.displayName;
-                    avatarImg.style.display = 'block';
-                } else {
-                    avatarImg.style.display = 'none';
-                    const avatarDiv = document.querySelector('.profile-avatar');
-                    if (avatarDiv) {
-                        const textSpan = document.createElement('span');
-                        textSpan.textContent = (user.displayName || user.username).charAt(0);
-                        textSpan.style.color = 'white';
-                        textSpan.style.fontSize = '32px';
-                        textSpan.style.fontWeight = '500';
-                        avatarDiv.innerHTML = '';
-                        avatarDiv.appendChild(textSpan);
-                        avatarDiv.appendChild(document.querySelector('.avatar-upload'));
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Load profile error:', error);
-        }
-    }
-
-    showSettingsModal() {
-        this.showModal('settings-modal');
-        this.loadSettings();
-    }
-
-    async loadSettings() {
-        try {
-            const token = localStorage.getItem('bm_token');
-            const response = await fetch('/api/settings', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                const settings = data.settings;
-                
-                // Load theme
-                const theme = localStorage.getItem('bm_theme') || settings.theme || 'light';
-                document.getElementById('theme-select').value = theme;
-                
-                // Load notification settings
-                document.getElementById('notifications-toggle').checked = settings.notifications !== false;
-                document.getElementById('sound-toggle').checked = settings.sound !== false;
-                
-                // Load privacy settings
-                document.getElementById('last-seen-select').value = settings.privacy?.lastSeen || 'everyone';
-                document.getElementById('read-receipts-toggle').checked = settings.privacy?.readReceipts !== false;
-                
-                // Apply theme
-                if (theme === 'dark') {
-                    document.body.classList.add('dark-theme');
-                } else if (theme === 'light') {
-                    document.body.classList.remove('dark-theme');
-                }
-            }
-        } catch (error) {
-            console.error('Load settings error:', error);
-        }
-    }
-
-    showAdminModal() {
-        this.showModal('admin-modal');
-        this.loadAdminUsers();
-    }
-
-    async loadAdminUsers() {
-        try {
-            const token = localStorage.getItem('bm_token');
-            const response = await fetch('/api/admin/users', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                this.renderAdminUsers(data.users);
-            }
-        } catch (error) {
-            console.error('Load admin users error:', error);
-        }
-    }
-
-    renderAdminUsers(users) {
-        const container = document.getElementById('admin-users-list');
-        container.innerHTML = '';
-
-        users.forEach(user => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${user.username}</td>
-                <td>${user.displayName || user.name || ''}</td>
-                <td>${user.email || ''}</td>
-                <td>
-                    <span class="badge ${user.role === 'admin' ? 'badge-primary' : 'badge-secondary'}">
-                        ${user.role}
-                    </span>
-                </td>
-                <td>${new Date(user.createdAt).toLocaleDateString()}</td>
-                <td>
-                    <button class="action-btn small" onclick="app.viewUser('${user._id}')" title="View">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button class="action-btn small danger" onclick="app.deleteUser('${user._id}')" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
+    
+    renderStatus(statusData) {
+        const { myStatus, recentUpdates } = statusData;
+        
+        // Update my status
+        this.elements.myStatus.querySelector('.avatar-img').innerHTML = 
+            myStatus.avatar ? `<img src="${myStatus.avatar}" alt="${myStatus.name}">` : myStatus.name.charAt(0);
+        this.elements.myStatus.querySelector('.status-name').textContent = myStatus.name;
+        this.elements.myStatus.querySelector('.status-time').textContent = 
+            myStatus.lastUpdated ? `Last updated ${this.formatTimeAgo(myStatus.lastUpdated)}` : 'Tap to add status update';
+        
+        // Render recent updates
+        if (recentUpdates.length === 0) {
+            this.elements.statusList.innerHTML = `
+                <div style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
+                    <i class="fas fa-circle" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                    <p>No status updates</p>
+                </div>
             `;
-            container.appendChild(tr);
+            return;
+        }
+        
+        this.elements.statusList.innerHTML = recentUpdates.map(status => `
+            <div class="status-item" onclick="app.viewStatus('${status.userId}')">
+                <div class="chat-avatar">
+                    <div class="avatar-img" style="border: 3px solid var(--whatsapp-green);">
+                        ${status.avatar ? `<img src="${status.avatar}" alt="${status.name}">` : status.name.charAt(0)}
+                    </div>
+                </div>
+                <div class="status-info">
+                    <div class="status-name">${status.name}</div>
+                    <div class="status-time">${this.formatTimeAgo(status.timestamp)}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // ===== CALLS =====
+    async loadCalls() {
+        // For demo, create call history
+        this.renderCalls(this.createDemoCalls());
+    }
+    
+    renderCalls(calls) {
+        if (calls.length === 0) {
+            this.elements.callsList.innerHTML = `
+                <div style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
+                    <i class="fas fa-phone" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                    <p>No call history</p>
+                </div>
+            `;
+            return;
+        }
+        
+        this.elements.callsList.innerHTML = calls.map(call => `
+            <div class="call-item" onclick="app.startCall('${call.type}', '${call.contact.userId}')">
+                <div class="chat-avatar">
+                    <div class="avatar-img">
+                        ${call.contact.avatar ? `<img src="${call.contact.avatar}" alt="${call.contact.name}">` : call.contact.name.charAt(0)}
+                    </div>
+                </div>
+                <div class="call-info">
+                    <div class="call-header">
+                        <div class="call-name">${call.contact.name}</div>
+                        <div class="call-time">${this.formatTime(call.timestamp)}</div>
+                    </div>
+                    <div class="call-details">
+                        <span class="call-direction ${call.status}">
+                            <i class="fas fa-${call.direction === 'incoming' ? 'arrow-down' : 'arrow-up'}"></i>
+                            ${call.direction === 'incoming' ? 'Incoming' : 'Outgoing'}
+                        </span>
+                        <span class="call-type">
+                            <i class="fas fa-${call.type === 'audio' ? 'phone' : 'video'}"></i>
+                            ${call.type === 'audio' ? 'Audio' : 'Video'}
+                        </span>
+                        ${call.duration ? `<span>• ${this.formatCallDuration(call.duration)}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // ===== SOCKET.IO =====
+    initializeSocket() {
+        if (!this.currentUser) return;
+        
+        this.socket = io();
+        
+        this.socket.on('connect', () => {
+            console.log('Connected to server');
+            
+            // Notify server user is online
+            this.socket.emit('user-online', {
+                userId: this.currentUser.userId,
+                username: this.currentUser.username
+            });
+        });
+        
+        this.socket.on('online-users', (users) => {
+            this.onlineUsers = new Set(users);
+            this.updateOnlineStatus();
+        });
+        
+        this.socket.on('user-status-changed', (data) => {
+            if (data.isOnline) {
+                this.onlineUsers.add(data.username);
+            } else {
+                this.onlineUsers.delete(data.username);
+            }
+            this.updateOnlineStatus();
+        });
+        
+        this.socket.on('new-message', (message) => {
+            if (this.currentChat && message.senderId === this.currentChat.userId) {
+                // Add message to current chat
+                this.addMessage(message.text, false, true, true);
+                
+                // Update typing indicator
+                if (message.isTyping) {
+                    this.showTypingIndicator();
+                }
+            }
+            
+            // Update chat list
+            this.updateChatList(message.senderId, message.text);
+        });
+        
+        this.socket.on('message-delivered', (data) => {
+            // Update message status
+            const messageEl = document.querySelector(`[data-message-id="${data.messageId}"]`);
+            if (messageEl) {
+                const statusEl = messageEl.querySelector('.message-status span');
+                if (statusEl) {
+                    statusEl.className = 'delivered';
+                    statusEl.textContent = '✓✓';
+                }
+            }
+        });
+        
+        this.socket.on('message-read', (data) => {
+            // Update message status
+            const messageEl = document.querySelector(`[data-message-id="${data.messageId}"]`);
+            if (messageEl) {
+                const statusEl = messageEl.querySelector('.message-status span');
+                if (statusEl) {
+                    statusEl.className = 'read';
+                    statusEl.textContent = '✓✓';
+                }
+            }
+        });
+        
+        this.socket.on('user-typing', (data) => {
+            if (this.currentChat && data.userId === this.currentChat.userId) {
+                if (data.isTyping) {
+                    this.showTypingIndicator();
+                } else {
+                    this.hideTypingIndicator();
+                }
+            }
+        });
+        
+        this.socket.on('chat-updated', (data) => {
+            // Refresh chat list
+            this.loadChats();
+        });
+        
+        this.socket.on('disconnect', () => {
+            console.log('Disconnected from server');
         });
     }
-
-    // Utility Functions
-    showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
+    
+    // ===== UTILITIES =====
+    updateUserInfo() {
+        if (!this.currentUser) return;
         
-        const icons = {
-            success: 'fas fa-check-circle',
-            error: 'fas fa-exclamation-circle',
-            warning: 'fas fa-exclamation-triangle',
-            info: 'fas fa-info-circle'
-        };
-        
-        toast.innerHTML = `
-            <div class="toast-icon">
-                <i class="${icons[type] || icons.info}"></i>
+        this.elements.menuAvatar.innerHTML = `
+            <div class="avatar-img">
+                ${this.currentUser.avatar ? `<img src="${this.currentUser.avatar}" alt="${this.currentUser.name}">` : this.currentUser.name.charAt(0)}
             </div>
-            <div class="toast-content">
-                <div class="toast-title">${type.charAt(0).toUpperCase() + type.slice(1)}</div>
-                <div class="toast-message">${message}</div>
-            </div>
-            <button class="toast-close" onclick="this.parentElement.remove()">
-                <i class="fas fa-times"></i>
-            </button>
         `;
         
-        container.appendChild(toast);
-        
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.remove();
+        this.elements.menuUserName.textContent = this.currentUser.name;
+        this.elements.menuUserStatus.textContent = this.currentUser.status || 'Online';
+    }
+    
+    updateOnlineStatus() {
+        // Update online status in chat list
+        document.querySelectorAll('.chat-item').forEach(item => {
+            const userId = item.dataset.userId;
+            if (userId) {
+                const onlineDot = item.querySelector('.online-dot');
+                if (onlineDot) {
+                    // For demo, we'll check if user is in our onlineUsers set
+                    // In real app, you'd check against actual online status
+                    onlineDot.style.display = this.onlineUsers.has(userId) ? 'block' : 'none';
+                }
             }
-        }, 5000);
+        });
     }
-
-    showLoading(show) {
-        const overlay = document.getElementById('loading-overlay');
-        overlay.style.display = show ? 'flex' : 'none';
-    }
-
-    toggleChatInfo() {
-        const sidebar = document.getElementById('chat-info-sidebar');
-        sidebar.classList.toggle('active');
-    }
-
-    showChatInfo() {
-        this.toggleChatInfo();
-        // Load chat info here
-    }
-
-    editProfile() {
-        // Implement profile editing
-        this.showToast('Profile editing coming soon!', 'info');
-    }
-
-    changePassword() {
-        // Implement password change
-        this.showToast('Password change coming soon!', 'info');
-    }
-
-    deleteAccount() {
-        if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-            this.showToast('Account deletion coming soon!', 'info');
-        }
-    }
-
-    clearChat() {
-        if (this.currentChat && confirm('Are you sure you want to clear this chat?')) {
-            this.showToast('Chat cleared', 'success');
-            // Implement chat clearing
-        }
-    }
-
-    blockUser() {
-        if (this.currentChat && confirm(`Are you sure you want to block ${this.currentChat.partner}?`)) {
-            this.showToast('User blocked', 'success');
-            // Implement user blocking
-        }
-    }
-
-    uploadAvatar() {
-        // Implement avatar upload
-        this.showToast('Avatar upload coming soon!', 'info');
-    }
-
-    toggleEmojiPicker() {
-        // Implement emoji picker
-        this.showToast('Emoji picker coming soon!', 'info');
-    }
-
-    showFilePicker() {
-        document.getElementById('file-input').click();
-    }
-
-    handleFileUpload(files) {
-        if (!files.length) return;
+    
+    showTypingIndicator() {
+        this.elements.typingIndicator.classList.add('active');
         
-        this.showToast(`Selected ${files.length} file(s)`, 'info');
-        // Implement file upload
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            this.hideTypingIndicator();
+        }, 3000);
     }
-
-    toggleVoiceMessage() {
-        // Implement voice message
-        this.showToast('Voice messages coming soon!', 'info');
+    
+    hideTypingIndicator() {
+        this.elements.typingIndicator.classList.remove('active');
     }
-
-    toggleFormatting() {
-        // Implement text formatting
-        this.showToast('Text formatting coming soon!', 'info');
+    
+    scrollToBottom() {
+        setTimeout(() => {
+            this.elements.messagesContainer.scrollTop = this.elements.messagesContainer.scrollHeight;
+        }, 100);
     }
-
-    startVoiceRecording() {
-        // Implement voice recording
-        this.showToast('Voice recording coming soon!', 'info');
+    
+    showToast(message, duration = 3000) {
+        this.elements.toast.textContent = message;
+        this.elements.toast.classList.add('active');
+        
+        setTimeout(() => {
+            this.elements.toast.classList.remove('active');
+        }, duration);
     }
-
-    viewUser(userId) {
-        // Implement user view
-        this.showToast('User view coming soon!', 'info');
-    }
-
-    deleteUser(userId) {
-        if (confirm('Are you sure you want to delete this user?')) {
-            this.showToast('User deletion coming soon!', 'info');
+    
+    formatTime(date) {
+        if (!date) return '';
+        const d = new Date(date);
+        const now = new Date();
+        const diff = now - d;
+        const dayDiff = Math.floor(diff / (1000 * 60 * 60 * 24));
+        
+        if (dayDiff === 0) {
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else if (dayDiff === 1) {
+            return 'Yesterday';
+        } else if (dayDiff < 7) {
+            return d.toLocaleDateString([], { weekday: 'short' });
+        } else {
+            return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
         }
     }
-
-    showAttachmentMenu() {
-        // Implement attachment menu
-        this.showToast('Attachment menu coming soon!', 'info');
+    
+    formatDate(date) {
+        if (!date) return '';
+        const d = new Date(date);
+        const now = new Date();
+        
+        if (d.toDateString() === now.toDateString()) {
+            return 'Today';
+        }
+        
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        if (d.toDateString() === yesterday.toDateString()) {
+            return 'Yesterday';
+        }
+        
+        return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+    }
+    
+    formatTimeAgo(date) {
+        if (!date) return '';
+        const d = new Date(date);
+        const now = new Date();
+        const diff = now - d;
+        const minutes = Math.floor(diff / (1000 * 60));
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        
+        if (minutes < 1) return 'Just now';
+        if (minutes < 60) return `${minutes}m ago`;
+        if (hours < 24) return `${hours}h ago`;
+        if (days < 7) return `${days}d ago`;
+        return this.formatDate(date);
+    }
+    
+    formatCallDuration(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    // ===== DEMO DATA (For testing without backend) =====
+    createDemoContacts() {
+        this.contacts = [
+            {
+                userId: 'contact_1',
+                name: 'John Doe',
+                phone: '+1234567890',
+                avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=0088cc&color=fff',
+                status: 'Available',
+                isOnline: true
+            },
+            {
+                userId: 'contact_2',
+                name: 'Jane Smith',
+                phone: '+0987654321',
+                avatar: 'https://ui-avatars.com/api/?name=Jane+Smith&background=25D366&color=fff',
+                status: 'At work',
+                isOnline: false
+            },
+            {
+                userId: 'contact_3',
+                name: 'Mike Johnson',
+                phone: '+1122334455',
+                avatar: 'https://ui-avatars.com/api/?name=Mike+Johnson&background=34B7F1&color=fff',
+                status: 'Hey there! I\'m using B-Messenger',
+                isOnline: true
+            },
+            {
+                userId: 'contact_4',
+                name: 'Sarah Williams',
+                phone: '+5566778899',
+                avatar: 'https://ui-avatars.com/api/?name=Sarah+Williams&background=FF9500&color=fff',
+                status: 'Busy',
+                isOnline: true
+            },
+            {
+                userId: 'contact_5',
+                name: 'Alex Brown',
+                phone: '+6677889900',
+                avatar: 'https://ui-avatars.com/api/?name=Alex+Brown&background=5856D6&color=fff',
+                status: 'Available for chat',
+                isOnline: false
+            }
+        ];
+    }
+    
+    createDemoChats() {
+        this.chats = [
+            {
+                id: 'chat_1',
+                userId: 'contact_1',
+                name: 'John Doe',
+                avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=0088cc&color=fff',
+                lastMessage: {
+                    text: 'See you tomorrow!',
+                    sender: 'John Doe',
+                    time: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
+                },
+                unreadCount: 2,
+                timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+                isOnline: true
+            },
+            {
+                id: 'chat_2',
+                userId: 'contact_2',
+                name: 'Jane Smith',
+                avatar: 'https://ui-avatars.com/api/?name=Jane+Smith&background=25D366&color=fff',
+                lastMessage: {
+                    text: 'Thanks for the help!',
+                    sender: 'You',
+                    time: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) // 1 day ago
+                },
+                unreadCount: 0,
+                timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+                isOnline: false
+            },
+            {
+                id: 'chat_3',
+                userId: 'contact_3',
+                name: 'Mike Johnson',
+                avatar: 'https://ui-avatars.com/api/?name=Mike+Johnson&background=34B7F1&color=fff',
+                lastMessage: {
+                    text: 'Meeting at 3 PM',
+                    sender: 'Mike Johnson',
+                    time: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 days ago
+                },
+                unreadCount: 0,
+                timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+                isOnline: true
+            }
+        ];
+    }
+    
+    createDemoMessages() {
+        return [
+            {
+                id: 'msg_1',
+                text: 'Hey there! How are you doing?',
+                isSent: false,
+                time: new Date(Date.now() - 2 * 60 * 60 * 1000),
+                isRead: true,
+                isDelivered: true
+            },
+            {
+                id: 'msg_2',
+                text: 'I\'m doing great! Just finished work.',
+                isSent: true,
+                time: new Date(Date.now() - 1.5 * 60 * 60 * 1000),
+                isRead: true,
+                isDelivered: true
+            },
+            {
+                id: 'msg_3',
+                text: 'That\'s awesome! Want to grab coffee tomorrow?',
+                isSent: false,
+                time: new Date(Date.now() - 1 * 60 * 60 * 1000),
+                isRead: true,
+                isDelivered: true
+            },
+            {
+                id: 'msg_4',
+                text: 'Sure, that sounds perfect! What time works for you?',
+                isSent: true,
+                time: new Date(Date.now() - 0.5 * 60 * 60 * 1000),
+                isRead: true,
+                isDelivered: true
+            }
+        ];
+    }
+    
+    createDemoStatus() {
+        return {
+            myStatus: {
+                userId: this.currentUser?.userId || 'user_1',
+                name: this.currentUser?.name || 'You',
+                avatar: this.currentUser?.avatar,
+                lastUpdated: new Date(Date.now() - 6 * 60 * 60 * 1000)
+            },
+            recentUpdates: [
+                {
+                    userId: 'contact_1',
+                    name: 'John Doe',
+                    avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=0088cc&color=fff',
+                    timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000)
+                },
+                {
+                    userId: 'contact_3',
+                    name: 'Mike Johnson',
+                    avatar: 'https://ui-avatars.com/api/?name=Mike+Johnson&background=34B7F1&color=fff',
+                    timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000)
+                },
+                {
+                    userId: 'contact_4',
+                    name: 'Sarah Williams',
+                    avatar: 'https://ui-avatars.com/api/?name=Sarah+Williams&background=FF9500&color=fff',
+                    timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000)
+                }
+            ]
+        };
+    }
+    
+    createDemoCalls() {
+        return [
+            {
+                id: 'call_1',
+                type: 'audio',
+                direction: 'incoming',
+                status: 'answered',
+                duration: 125,
+                timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+                contact: {
+                    userId: 'contact_1',
+                    name: 'John Doe',
+                    avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=0088cc&color=fff'
+                }
+            },
+            {
+                id: 'call_2',
+                type: 'video',
+                direction: 'outgoing',
+                status: 'answered',
+                duration: 305,
+                timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+                contact: {
+                    userId: 'contact_2',
+                    name: 'Jane Smith',
+                    avatar: 'https://ui-avatars.com/api/?name=Jane+Smith&background=25D366&color=fff'
+                }
+            },
+            {
+                id: 'call_3',
+                type: 'audio',
+                direction: 'incoming',
+                status: 'missed',
+                duration: 0,
+                timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+                contact: {
+                    userId: 'contact_3',
+                    name: 'Mike Johnson',
+                    avatar: 'https://ui-avatars.com/api/?name=Mike+Johnson&background=34B7F1&color=fff'
+                }
+            }
+        ];
+    }
+    
+    // ===== UNIMPLEMENTED FEATURES (Placeholders) =====
+    viewUserProfile(userId) {
+        this.showToast('User profile feature coming soon');
+    }
+    
+    showMoreOptions() {
+        this.showToast('More options feature coming soon');
+    }
+    
+    showAttachmentOptions(source) {
+        this.showToast('Attachment feature coming soon');
+    }
+    
+    startCall(type, userId = null) {
+        if (type === 'audio' || type === 'video') {
+            this.showToast(`${type === 'audio' ? 'Audio' : 'Video'} call feature coming soon`);
+        }
+    }
+    
+    showChatOptions() {
+        this.showToast('Chat options feature coming soon');
+    }
+    
+    viewStatus(userId) {
+        this.showToast('Status viewer feature coming soon');
+    }
+    
+    loadInitialData() {
+        this.loadChats();
+        this.loadContacts();
     }
 }
 
-// Initialize the app when page loads
-window.addEventListener('DOMContentLoaded', () => {
-    window.app = new BMessenger();
+// Initialize the app when DOM is loaded
+let app;
+document.addEventListener('DOMContentLoaded', () => {
+    app = new MessengerApp();
 });
 
-// Global helper functions
-function formatTime(date) {
-    return window.app ? window.app.formatTime(date) : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function showToast(message, type) {
-    if (window.app) {
-        window.app.showToast(message, type);
-    }
-        }
+// Make app available globally for inline onclick handlers
+window.app = app;
