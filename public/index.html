@@ -3,338 +3,552 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>B-Messenger</title>
+    <title>WhatsApp</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💚</text></svg>">
     <meta name="theme-color" content="#128C7E">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
-    <!-- App Container -->
-    <div class="app-container" id="app-container">
-        <!-- Loading Screen -->
-        <div class="loading-screen" id="loading-screen">
-            <div class="loading-content">
-                <div class="loading-logo">
-                    <i class="fab fa-whatsapp"></i>
-                </div>
-                <div class="loading-text">B-Messenger</div>
-                <div class="loading-subtext">WhatsApp Clone</div>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loading-screen">
+        <div class="loading-content">
+            <div class="whatsapp-logo">
+                <i class="fab fa-whatsapp"></i>
             </div>
+            <div class="loading-text">WhatsApp</div>
+            <div class="loading-subtext">End-to-end encrypted</div>
         </div>
+    </div>
 
-        <!-- Login Screen -->
-        <div class="login-screen" id="login-screen">
-            <div class="login-header">
-                <div class="login-logo">
+    <!-- Auth Screen -->
+    <div class="auth-screen" id="auth-screen">
+        <div class="auth-container">
+            <div class="auth-header">
+                <div class="whatsapp-logo">
                     <i class="fab fa-whatsapp"></i>
                 </div>
-                <h1 class="login-title">B-Messenger</h1>
-                <p class="login-subtitle">WhatsApp-style messaging</p>
+                <h1 class="auth-title">WhatsApp</h1>
+                <p class="auth-subtitle">Simple. Secure. Reliable messaging.</p>
             </div>
             
-            <div class="login-form">
-                <div class="form-group">
-                    <input type="tel" class="form-input" id="phone-input" 
-                           placeholder="Phone number" maxlength="15">
-                </div>
-                <div class="form-group">
-                    <input type="text" class="form-input" id="name-input" 
-                           placeholder="Your name">
-                </div>
-                <div class="form-group">
-                    <input type="password" class="form-input" id="password-input" 
-                           placeholder="Password (min 6 chars)">
-                </div>
-                
-                <button class="login-button" id="login-btn">
-                    <span>CONTINUE</span>
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="login-tab" onclick="showAuthTab('login')">
+                    <span>LOGIN</span>
                 </button>
+                <button class="auth-tab" id="register-tab" onclick="showAuthTab('register')">
+                    <span>REGISTER</span>
+                </button>
+            </div>
+            
+            <div class="auth-forms">
+                <!-- Login Form -->
+                <form class="auth-form active" id="login-form" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <input type="tel" id="login-phone" class="form-input" 
+                               placeholder="Phone number (e.g., +1234567890)" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="login-password" class="form-input" 
+                               placeholder="Password" required>
+                    </div>
+                    <button type="submit" class="auth-button" id="login-button">
+                        <span>CONTINUE</span>
+                    </button>
+                </form>
                 
-                <div class="login-note">
-                    By continuing, you agree to our Terms & Privacy Policy
-                </div>
+                <!-- Register Form -->
+                <form class="auth-form" id="register-form" onsubmit="handleRegister(event)">
+                    <div class="form-group">
+                        <input type="tel" id="register-phone" class="form-input" 
+                               placeholder="Phone number (e.g., +1234567890)" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" id="register-name" class="form-input" 
+                               placeholder="Your name" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="email" id="register-email" class="form-input" 
+                               placeholder="Email (optional)">
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="register-password" class="form-input" 
+                               placeholder="Create password (min 6 characters)" required>
+                    </div>
+                    <button type="submit" class="auth-button" id="register-button">
+                        <span>CREATE ACCOUNT</span>
+                    </button>
+                </form>
+            </div>
+            
+            <div class="auth-footer">
+                <p>By continuing, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div class="main-app" id="main-app" style="display: none;">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <button class="header-btn" id="menu-btn">
+                    <span>WhatsApp</span>
+                </button>
+            </div>
+            <div class="header-right">
+                <button class="header-btn" id="camera-btn">
+                    <i class="fas fa-camera"></i>
+                </button>
+                <button class="header-btn" id="search-btn">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="header-btn" id="more-btn">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Tabs -->
+        <nav class="app-tabs">
+            <button class="tab-btn active" data-tab="chats">
+                <i class="fas fa-comments"></i>
+                <span class="tab-label">CHATS</span>
+            </button>
+            <button class="tab-btn" data-tab="status">
+                <i class="fas fa-circle"></i>
+                <span class="tab-label">STATUS</span>
+            </button>
+            <button class="tab-btn" data-tab="calls">
+                <i class="fas fa-phone"></i>
+                <span class="tab-label">CALLS</span>
+            </button>
+        </nav>
+
+        <!-- Search Bar -->
+        <div class="search-container" id="search-container" style="display: none;">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="search-input" class="search-input" 
+                       placeholder="Search or start new chat">
+                <button class="search-clear" id="search-clear">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
         </div>
 
-        <!-- Main App (hidden initially) -->
-        <div class="main-app" id="main-app">
-            <!-- Header -->
-            <header class="app-header">
-                <div class="header-left">
-                    <button class="header-btn" id="menu-btn">
-                        <i class="fas fa-bars"></i>
-                    </button>
+        <!-- Content Area -->
+        <main class="app-content">
+            <!-- Chats Tab -->
+            <div class="tab-content active" id="chats-tab">
+                <div class="chats-list" id="chats-list">
+                    <!-- Chats will be loaded here -->
                 </div>
-                <div class="header-center">
-                    <span class="header-title" id="header-title">Chats</span>
-                </div>
-                <div class="header-right">
-                    <button class="header-btn" id="search-btn">
-                        <i class="fas fa-search"></i>
-                    </button>
-                    <button class="header-btn" id="more-btn">
-                        <i class="fas fa-ellipsis-v"></i>
-                    </button>
-                </div>
-            </header>
-
-            <!-- Navigation Tabs -->
-            <nav class="nav-tabs">
-                <button class="nav-tab active" data-tab="chats">
-                    <i class="fas fa-comments"></i>
-                    <span>CHATS</span>
+                
+                <!-- Floating Action Button -->
+                <button class="fab-button" id="new-chat-fab">
+                    <i class="fas fa-message"></i>
                 </button>
-                <button class="nav-tab" data-tab="status">
-                    <i class="fas fa-circle"></i>
-                    <span>STATUS</span>
-                </button>
-                <button class="nav-tab" data-tab="calls">
-                    <i class="fas fa-phone"></i>
-                    <span>CALLS</span>
-                </button>
-            </nav>
-
-            <!-- Search Bar -->
-            <div class="search-bar" id="search-bar">
-                <div class="search-input-wrapper">
-                    <i class="fas fa-search"></i>
-                    <input type="text" class="search-input" id="global-search" 
-                           placeholder="Search...">
-                    <button class="search-clear" id="search-clear">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
             </div>
 
-            <!-- Main Content -->
-            <main class="main-content">
-                <!-- Chats Tab -->
-                <div class="tab-content active" id="chats-tab">
-                    <div class="chats-list" id="chats-list">
-                        <!-- Chats will be loaded here -->
+            <!-- Status Tab -->
+            <div class="tab-content" id="status-tab">
+                <div class="status-container">
+                    <!-- My Status -->
+                    <div class="my-status" id="my-status">
+                        <div class="status-avatar">
+                            <div class="avatar-img" id="my-status-avatar">
+                                <i class="fas fa-plus"></i>
+                            </div>
+                        </div>
+                        <div class="status-info">
+                            <div class="status-name">My status</div>
+                            <div class="status-time">Tap to add status update</div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Updates -->
+                    <div class="status-section">
+                        <div class="section-title">Recent updates</div>
+                        <div class="status-list" id="status-list">
+                            <!-- Status updates will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Status FAB -->
+                <button class="fab-button status-fab" id="status-camera-fab">
+                    <i class="fas fa-camera"></i>
+                </button>
+                <button class="fab-button status-fab" id="status-text-fab">
+                    <i class="fas fa-pencil-alt"></i>
+                </button>
+            </div>
+
+            <!-- Calls Tab -->
+            <div class="tab-content" id="calls-tab">
+                <div class="calls-container">
+                    <div class="call-actions">
+                        <button class="call-link-btn" id="create-call-link">
+                            <i class="fas fa-link"></i>
+                            <span>Create call link</span>
+                        </button>
                     </div>
                     
-                    <div class="fab-button" id="new-chat-fab">
-                        <i class="fas fa-message"></i>
+                    <div class="calls-list" id="calls-list">
+                        <!-- Call history will be loaded here -->
                     </div>
                 </div>
-
-                <!-- Status Tab -->
-                <div class="tab-content" id="status-tab">
-                    <div class="status-container">
-                        <!-- My Status -->
-                        <div class="my-status" id="my-status">
-                            <div class="status-avatar">
-                                <div class="avatar-img">
-                                    <i class="fas fa-plus"></i>
-                                </div>
-                            </div>
-                            <div class="status-info">
-                                <div class="status-name">My status</div>
-                                <div class="status-time">Tap to add status update</div>
-                            </div>
-                        </div>
-
-                        <!-- Recent Updates -->
-                        <div class="status-section">
-                            <div class="section-title">Recent updates</div>
-                            <div class="status-list" id="status-list">
-                                <!-- Status updates will be loaded here -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Calls Tab -->
-                <div class="tab-content" id="calls-tab">
-                    <div class="calls-container">
-                        <div class="call-actions">
-                            <button class="call-action-btn" id="create-call-link">
-                                <i class="fas fa-link"></i>
-                                <span>Create call link</span>
-                            </button>
-                        </div>
-                        
-                        <div class="calls-list" id="calls-list">
-                            <!-- Call history will be loaded here -->
-                        </div>
-                    </div>
-                </div>
-            </main>
-
-            <!-- Bottom Navigation (for chat screen) -->
-            <div class="bottom-nav" id="bottom-nav">
-                <div class="message-input-container">
-                    <button class="input-action-btn" id="attach-btn">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                    <div class="message-input-wrapper">
-                        <input type="text" class="message-input" id="message-input" 
-                               placeholder="Message">
-                    </div>
-                    <button class="input-action-btn" id="emoji-btn">
-                        <i class="far fa-smile"></i>
-                    </button>
-                    <button class="send-button" id="send-button">
-                        <i class="fas fa-microphone"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Chat Screen (hidden initially) -->
-        <div class="chat-screen" id="chat-screen">
-            <!-- Chat Header -->
-            <header class="chat-header">
-                <button class="back-button" id="chat-back-btn">
-                    <i class="fas fa-arrow-left"></i>
+                
+                <!-- Call FAB -->
+                <button class="fab-button call-fab" id="new-call-fab">
+                    <i class="fas fa-phone-plus"></i>
                 </button>
-                <div class="chat-user-info">
-                    <div class="chat-avatar" id="chat-avatar">
-                        <!-- Avatar will be set dynamically -->
-                    </div>
-                    <div class="chat-user-details">
-                        <div class="chat-user-name" id="chat-user-name">Loading...</div>
-                        <div class="chat-user-status" id="chat-user-status">Online</div>
-                    </div>
-                </div>
-                <div class="chat-actions">
-                    <button class="chat-action-btn" id="call-btn">
-                        <i class="fas fa-phone"></i>
-                    </button>
-                    <button class="chat-action-btn" id="video-call-btn">
-                        <i class="fas fa-video"></i>
-                    </button>
-                    <button class="chat-action-btn" id="chat-menu-btn">
-                        <i class="fas fa-ellipsis-v"></i>
-                    </button>
-                </div>
-            </header>
-
-            <!-- Messages Container -->
-            <div class="messages-container" id="messages-container">
-                <!-- Messages will be loaded here -->
-                <div class="typing-indicator" id="typing-indicator">
-                    <div class="typing-dots">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-                </div>
             </div>
+        </main>
 
-            <!-- Chat Input -->
-            <div class="chat-input-container">
-                <button class="chat-input-action-btn" id="chat-attach-btn">
-                    <i class="fas fa-plus"></i>
-                </button>
-                <div class="chat-input-wrapper">
-                    <input type="text" class="chat-input" id="chat-message-input" 
-                           placeholder="Type a message...">
-                </div>
-                <button class="chat-input-action-btn" id="chat-emoji-btn">
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <div class="message-input-container">
+                <button class="input-btn" id="emoji-btn">
                     <i class="far fa-smile"></i>
                 </button>
-                <button class="chat-send-button" id="chat-send-button">
+                <div class="message-input-wrapper">
+                    <input type="text" id="message-input" class="message-input" 
+                           placeholder="Type a message">
+                </div>
+                <button class="input-btn" id="attach-btn">
+                    <i class="fas fa-paperclip"></i>
+                </button>
+                <button class="send-button" id="send-button">
                     <i class="fas fa-microphone"></i>
                 </button>
             </div>
         </div>
+    </div>
 
-        <!-- New Chat Modal -->
-        <div class="modal-overlay" id="new-chat-modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3 class="modal-title">New Chat</h3>
-                    <button class="modal-close" id="close-new-chat">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="search-input-wrapper">
-                        <i class="fas fa-search"></i>
-                        <input type="text" class="search-input" id="contact-search" 
-                               placeholder="Search contacts...">
-                    </div>
-                    <div class="contacts-list" id="contacts-list">
-                        <!-- Contacts will be loaded here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Side Menu -->
-        <div class="side-menu" id="side-menu">
-            <div class="menu-header">
-                <div class="menu-user-info">
-                    <div class="menu-avatar" id="menu-avatar">
+    <!-- Chat Screen -->
+    <div class="chat-screen" id="chat-screen" style="display: none;">
+        <!-- Chat Header -->
+        <header class="chat-header">
+            <button class="back-btn" id="chat-back-btn">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div class="chat-user-info" id="chat-user-info">
+                <div class="chat-avatar" id="chat-avatar">
+                    <div class="avatar-img">
                         <!-- Avatar will be set dynamically -->
                     </div>
-                    <div class="menu-user-details">
-                        <div class="menu-user-name" id="menu-user-name">Loading...</div>
-                        <div class="menu-user-status" id="menu-user-status">Online</div>
+                </div>
+                <div class="chat-user-details">
+                    <div class="chat-user-name" id="chat-user-name">Loading...</div>
+                    <div class="chat-user-status" id="chat-user-status">
+                        <span id="chat-status-text">online</span>
                     </div>
                 </div>
             </div>
-            <div class="menu-items">
-                <a href="#" class="menu-item">
-                    <i class="fas fa-user-friends"></i>
-                    <span>New group</span>
-                </a>
-                <a href="#" class="menu-item">
-                    <i class="fas fa-user"></i>
-                    <span>Contacts</span>
-                </a>
-                <a href="#" class="menu-item">
-                    <i class="fas fa-bell"></i>
-                    <span>Notifications</span>
-                </a>
-                <a href="#" class="menu-item">
-                    <i class="fas fa-star"></i>
-                    <span>Starred messages</span>
-                </a>
-                <a href="#" class="menu-item">
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
-                </a>
+            <div class="chat-actions">
+                <button class="chat-action-btn" id="voice-call-btn">
+                    <i class="fas fa-phone"></i>
+                </button>
+                <button class="chat-action-btn" id="video-call-btn">
+                    <i class="fas fa-video"></i>
+                </button>
+                <button class="chat-action-btn" id="chat-menu-btn">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
             </div>
-            <div class="menu-footer">
-                <a href="#" class="menu-item" id="logout-btn">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Logout</span>
-                </a>
+        </header>
+
+        <!-- Messages Container -->
+        <div class="messages-container" id="messages-container">
+            <!-- Messages will be loaded here -->
+            <div class="typing-indicator" id="typing-indicator" style="display: none;">
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
             </div>
         </div>
 
-        <!-- Message Actions Menu -->
-        <div class="action-menu" id="message-actions">
-            <div class="action-item" data-action="reply">
-                <i class="fas fa-reply"></i>
-                <span>Reply</span>
+        <!-- Chat Input -->
+        <div class="chat-input-container">
+            <button class="chat-input-btn" id="chat-emoji-btn">
+                <i class="far fa-smile"></i>
+            </button>
+            <div class="chat-input-wrapper">
+                <input type="text" id="chat-message-input" class="chat-input" 
+                       placeholder="Type a message...">
             </div>
-            <div class="action-item" data-action="forward">
-                <i class="fas fa-share"></i>
-                <span>Forward</span>
-            </div>
-            <div class="action-item" data-action="copy">
-                <i class="fas fa-copy"></i>
-                <span>Copy</span>
-            </div>
-            <div class="action-item" data-action="delete">
-                <i class="fas fa-trash"></i>
-                <span>Delete</span>
-            </div>
+            <button class="chat-input-btn" id="chat-attach-btn">
+                <i class="fas fa-paperclip"></i>
+            </button>
+            <button class="chat-send-button" id="chat-send-button">
+                <i class="fas fa-microphone"></i>
+            </button>
         </div>
-
-        <!-- Toast Notification -->
-        <div class="toast" id="toast"></div>
     </div>
+
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settings-panel">
+        <div class="settings-header">
+            <button class="settings-back-btn" id="settings-back-btn">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div class="settings-title">Settings</div>
+        </div>
+        
+        <div class="settings-content">
+            <!-- Profile -->
+            <div class="settings-section">
+                <div class="settings-item profile-item" id="profile-settings">
+                    <div class="profile-avatar">
+                        <div class="avatar-img-large" id="settings-avatar">
+                            <!-- Avatar will be set -->
+                        </div>
+                    </div>
+                    <div class="profile-info">
+                        <div class="profile-name" id="settings-name">Loading...</div>
+                        <div class="profile-about" id="settings-about">Hey there! I'm using WhatsApp</div>
+                    </div>
+                    <i class="fas fa-qrcode"></i>
+                </div>
+            </div>
+
+            <!-- Account -->
+            <div class="settings-section">
+                <div class="section-header">Account</div>
+                <div class="settings-item">
+                    <i class="fas fa-key"></i>
+                    <span>Privacy</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                <div class="settings-item">
+                    <i class="fas fa-lock"></i>
+                    <span>Security</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                <div class="settings-item">
+                    <i class="fas fa-envelope"></i>
+                    <span>Two-step verification</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                <div class="settings-item">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Change number</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                <div class="settings-item">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Delete account</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </div>
+
+            <!-- Chats -->
+            <div class="settings-section">
+                <div class="section-header">Chats</div>
+                <div class="settings-item">
+                    <i class="fas fa-image"></i>
+                    <span>Chat wallpaper</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                <div class="settings-item">
+                    <i class="fas fa-history"></i>
+                    <span>Chat history</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                <div class="settings-item">
+                    <i class="fas fa-archive"></i>
+                    <span>Archive chats</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                <div class="settings-item toggle-item">
+                    <div>
+                        <i class="fas fa-enter"></i>
+                        <span>Enter to send</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enter-to-send" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-item toggle-item">
+                    <div>
+                        <i class="fas fa-eye"></i>
+                        <span>Media visibility</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="media-visibility" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Notifications -->
+            <div class="settings-section">
+                <div class="section-header">Notifications</div>
+                <div class="settings-item toggle-item">
+                    <div>
+                        <i class="fas fa-bell"></i>
+                        <span>Message notifications</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="message-notifications" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-item toggle-item">
+                    <div>
+                        <i class="fas fa-volume-up"></i>
+                        <span>Sound</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="sound-toggle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-item toggle-item">
+                    <div>
+                        <i class="fas fa-vibrate"></i>
+                        <span>Vibration</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="vibration-toggle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Storage & Data -->
+            <div class="settings-section">
+                <div class="section-header">Storage and data</div>
+                <div class="settings-item">
+                    <i class="fas fa-wifi"></i>
+                    <span>Network usage</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                <div class="settings-item">
+                    <i class="fas fa-download"></i>
+                    <span>Auto-download</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </div>
+
+            <!-- Theme -->
+            <div class="settings-section">
+                <div class="section-header">Theme</div>
+                <div class="theme-options">
+                    <button class="theme-option active" data-theme="light">
+                        <i class="fas fa-sun"></i>
+                        <span>Light</span>
+                    </button>
+                    <button class="theme-option" data-theme="dark">
+                        <i class="fas fa-moon"></i>
+                        <span>Dark</span>
+                    </button>
+                    <button class="theme-option" data-theme="system">
+                        <i class="fas fa-desktop"></i>
+                        <span>System</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Help & About -->
+            <div class="settings-section">
+                <div class="section-header">Help</div>
+                <div class="settings-item">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Help center</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                <div class="settings-item">
+                    <i class="fas fa-envelope"></i>
+                    <span>Contact us</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                <div class="settings-item">
+                    <i class="fas fa-info-circle"></i>
+                    <span>App info</span>
+                    <span class="version">v2.23.1</span>
+                </div>
+            </div>
+
+            <!-- Logout -->
+            <div class="settings-section">
+                <button class="logout-btn" id="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Log out</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Chat Modal -->
+    <div class="modal-overlay" id="new-chat-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">New chat</h3>
+                <button class="modal-close" id="close-new-chat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="contact-search" class="search-input" 
+                           placeholder="Search name or number">
+                </div>
+                <div class="contacts-list" id="contacts-list">
+                    <!-- Contacts will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attachment Menu -->
+    <div class="attachment-menu" id="attachment-menu">
+        <div class="attachment-item" data-type="camera">
+            <i class="fas fa-camera"></i>
+            <span>Camera</span>
+        </div>
+        <div class="attachment-item" data-type="gallery">
+            <i class="fas fa-images"></i>
+            <span>Gallery</span>
+        </div>
+        <div class="attachment-item" data-type="document">
+            <i class="fas fa-file"></i>
+            <span>Document</span>
+        </div>
+        <div class="attachment-item" data-type="audio">
+            <i class="fas fa-microphone"></i>
+            <span>Audio</span>
+        </div>
+        <div class="attachment-item" data-type="location">
+            <i class="fas fa-map-marker-alt"></i>
+            <span>Location</span>
+        </div>
+        <div class="attachment-item" data-type="contact">
+            <i class="fas fa-user"></i>
+            <span>Contact</span>
+        </div>
+    </div>
+
+    <!-- File Input (Hidden) -->
+    <input type="file" id="file-input" style="display: none;" accept="image/*,video/*,audio/*,.pdf,.txt,.doc,.docx">
+    
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Audio for notifications -->
+    <audio id="message-sound" src="https://assets.mixkit.co/sfx/preview/mixkit-message-pop-alert-2354.mp3"></audio>
+    <audio id="send-sound" src="https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.mp3"></audio>
 
     <!-- Scripts -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-</html>
+                        </html>
