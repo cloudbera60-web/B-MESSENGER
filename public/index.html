@@ -3,82 +3,206 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>B MESSENGER - BE A MESENGER</title>
-    <link rel="stylesheet" href="/style.css">
+    <title>B MESSENGER - WhatsApp/Telegram Clone</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
     <!-- Login Screen -->
     <div class="login-screen" id="login-screen">
         <div class="login-container">
             <div class="login-header">
-                <h1>B MESSENGER</h1>
-                <p>WhatsApp/Telegram Clone</p>
+                <div class="app-logo">
+                    <i class="fas fa-comments"></i>
+                    <span>B MESSENGER</span>
+                </div>
+                <h1>Welcome Back</h1>
+                <p>Sign in to continue to B MESSENGER</p>
             </div>
             
-            <div class="login-tabs">
-                <div class="login-tab active" onclick="showLoginTab('login')">Login</div>
-                <div class="login-tab" onclick="showLoginTab('register')">Register</div>
-            </div>
-            
-            <div class="login-form active" id="login-form">
-                <div class="error-message" id="error-message"></div>
-                <div class="success-message" id="success-message"></div>
+            <div class="login-form" id="login-form">
+                <div class="form-group">
+                    <label for="login-username">Username or Email</label>
+                    <input type="text" id="login-username" placeholder="Enter username or email" class="form-input">
+                </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Username</label>
-                    <input type="text" class="form-input" id="login-username" placeholder="Enter username">
+                    <label for="login-password">Password</label>
+                    <div class="password-input">
+                        <input type="password" id="login-password" placeholder="Enter password" class="form-input">
+                        <button type="button" class="show-password" id="show-login-password">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Password</label>
-                    <input type="password" class="form-input" id="login-password" placeholder="Enter password">
+                
+                <div class="form-options">
+                    <label class="checkbox">
+                        <input type="checkbox" id="remember-me">
+                        <span>Remember me</span>
+                    </label>
+                    <a href="#" class="forgot-password">Forgot password?</a>
                 </div>
-                <button class="login-button" id="login-btn">
+                
+                <button class="primary-button" id="login-btn">
                     <span>Sign In</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                
+                <div class="divider">
+                    <span>New to B MESSENGER?</span>
+                </div>
+                
+                <button class="secondary-button" id="go-to-register">
+                    Create New Account
                 </button>
             </div>
-            
-            <div class="login-form" id="register-form">
-                <div class="form-group">
-                    <label class="form-label">Username</label>
-                    <input type="text" class="form-input" id="register-username" placeholder="Choose username">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Display Name</label>
-                    <input type="text" class="form-input" id="register-displayname" placeholder="Your name">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Password</label>
-                    <input type="password" class="form-input" id="register-password" placeholder="Create password">
-                </div>
-                <button class="login-button" id="register-btn">
-                    <span>Create Account</span>
+        </div>
+        
+        <div class="login-footer">
+            <p>© 2024 B MESSENGER. All rights reserved.</p>
+            <div class="footer-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Help Center</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Screen (Hidden by default) -->
+    <div class="register-screen" id="register-screen" style="display: none;">
+        <div class="register-container">
+            <div class="register-header">
+                <button class="back-button" id="back-to-login">
+                    <i class="fas fa-arrow-left"></i>
                 </button>
+                <div class="app-logo">
+                    <i class="fas fa-comments"></i>
+                    <span>B MESSENGER</span>
+                </div>
+                <h1>Create Account</h1>
+                <p>Join B MESSENGER today</p>
+            </div>
+            
+            <div class="register-form" id="register-form">
+                <div class="form-group">
+                    <label for="register-username">Username *</label>
+                    <input type="text" id="register-username" placeholder="Choose username" class="form-input">
+                    <div class="form-hint">This will be your unique identifier</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-displayname">Display Name *</label>
+                    <input type="text" id="register-displayname" placeholder="Your name" class="form-input">
+                    <div class="form-hint">This is how others will see you</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-email">Email Address</label>
+                    <input type="email" id="register-email" placeholder="your@email.com" class="form-input">
+                    <div class="form-hint">Optional, for account recovery</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-password">Password *</label>
+                    <div class="password-input">
+                        <input type="password" id="register-password" placeholder="Create password" class="form-input">
+                        <button type="button" class="show-password" id="show-register-password">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="form-hint">At least 6 characters</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-confirm-password">Confirm Password *</label>
+                    <div class="password-input">
+                        <input type="password" id="register-confirm-password" placeholder="Confirm password" class="form-input">
+                        <button type="button" class="show-password" id="show-confirm-password">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox">
+                        <input type="checkbox" id="terms-agreement">
+                        <span>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></span>
+                    </label>
+                </div>
+                
+                <button class="primary-button" id="register-btn">
+                    <span>Create Account</span>
+                    <i class="fas fa-user-plus"></i>
+                </button>
+                
+                <div class="divider">
+                    <span>Already have an account?</span>
+                </div>
+                
+                <button class="secondary-button" id="go-to-login">
+                    Sign In Instead
+                </button>
+            </div>
+        </div>
+        
+        <div class="register-footer">
+            <p>© 2024 B MESSENGER. All rights reserved.</p>
+            <div class="footer-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Help Center</a>
             </div>
         </div>
     </div>
 
     <!-- Main App Container -->
-    <div class="app-container" id="app-container">
-        <!-- Sidebar -->
+    <div class="app-container" id="app-container" style="display: none;">
+        <!-- Left Sidebar -->
         <div class="sidebar">
             <!-- Sidebar Header -->
             <div class="sidebar-header">
-                <div class="user-avatar" id="user-avatar"></div>
-                <div class="user-info">
-                    <div class="user-name" id="current-user-name">Loading...</div>
-                    <div class="user-status" id="current-user-status">Online</div>
+                <div class="user-profile" onclick="app.showProfileModal()">
+                    <div class="user-avatar" id="user-avatar">
+                        <img id="user-avatar-img" alt="User Avatar">
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name" id="current-user-name">Loading...</div>
+                        <div class="user-status" id="current-user-status">
+                            <i class="fas fa-circle online"></i>
+                            <span>Online</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="header-actions">
-                    <button class="header-btn" id="new-chat-btn" title="New Chat">
+                
+                <div class="sidebar-actions">
+                    <button class="action-btn" id="new-chat-btn" title="New Chat">
                         <i class="fas fa-comment-medical"></i>
                     </button>
-                    <button class="header-btn" id="settings-btn" title="Settings">
-                        <i class="fas fa-cog"></i>
+                    <button class="action-btn" id="new-group-btn" title="New Group">
+                        <i class="fas fa-users"></i>
                     </button>
-                    <button class="header-btn" id="logout-btn" title="Logout">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </button>
+                    <div class="dropdown">
+                        <button class="action-btn" id="more-options-btn" title="More Options">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div class="dropdown-menu">
+                            <a href="#" onclick="app.showSettingsModal()">
+                                <i class="fas fa-cog"></i> Settings
+                            </a>
+                            <a href="#" onclick="app.showProfileModal()">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                            <a href="#" id="admin-dashboard-btn" style="display: none;">
+                                <i class="fas fa-shield-alt"></i> Admin Dashboard
+                            </a>
+                            <div class="divider"></div>
+                            <a href="#" onclick="app.logout()" class="logout">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -87,12 +211,19 @@
                 <div class="search-box">
                     <i class="fas fa-search"></i>
                     <input type="text" class="search-input" id="search-input" 
-                           placeholder="Search users or chats...">
+                           placeholder="Search users or messages...">
+                    <button class="search-clear" id="search-clear">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
             </div>
 
             <!-- Chat List -->
             <div class="chat-list" id="chat-list">
+                <div class="list-header">
+                    <h3>Chats</h3>
+                    <span class="badge" id="chat-count">0</span>
+                </div>
                 <div id="conversations-list">
                     <!-- Conversations will be loaded here -->
                 </div>
@@ -102,234 +233,392 @@
         <!-- Chat Panel -->
         <div class="chat-panel" id="chat-panel">
             <!-- Chat Header -->
-            <div class="chat-header-panel">
-                <button class="back-button" id="back-button">
+            <div class="chat-header">
+                <button class="back-button" id="back-to-chats">
                     <i class="fas fa-arrow-left"></i>
                 </button>
-                <div class="chat-user-info">
-                    <div class="chat-user-avatar" id="chat-user-avatar"></div>
-                    <div class="chat-user-details">
-                        <div class="chat-user-name" id="chat-user-name">Select a chat</div>
-                        <div class="chat-user-status" id="chat-user-status">
+                
+                <div class="chat-user-info" onclick="app.showChatInfo()">
+                    <div class="user-avatar" id="chat-user-avatar">
+                        <img id="chat-avatar-img" alt="Chat Avatar">
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name" id="chat-user-name">Select a chat</div>
+                        <div class="user-status" id="chat-user-status">
                             Click on a chat to start messaging
                         </div>
                     </div>
                 </div>
+                
                 <div class="chat-actions">
-                    <button class="chat-action-btn" onclick="toggleUserInfo()" title="Info">
+                    <button class="action-btn" onclick="app.toggleChatInfo()" title="Chat Info">
                         <i class="fas fa-info-circle"></i>
                     </button>
+                    <button class="action-btn" onclick="app.showAttachmentMenu()" title="Attachments">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <div class="dropdown">
+                        <button class="action-btn" title="More Options">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div class="dropdown-menu">
+                            <a href="#" onclick="app.toggleChatInfo()">
+                                <i class="fas fa-info-circle"></i> Chat Info
+                            </a>
+                            <a href="#" onclick="app.clearChat()">
+                                <i class="fas fa-trash"></i> Clear Chat
+                            </a>
+                            <a href="#" onclick="app.blockUser()">
+                                <i class="fas fa-ban"></i> Block User
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Messages Container -->
             <div class="messages-container" id="messages-container">
+                <!-- Welcome Screen -->
+                <div class="welcome-screen" id="welcome-screen">
+                    <div class="welcome-icon">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <h2>Welcome to B MESSENGER</h2>
+                    <p>Select a chat to start messaging or search for users to begin new conversations.</p>
+                    <div class="welcome-features">
+                        <div class="feature">
+                            <i class="fas fa-bolt"></i>
+                            <span>Real-time messaging</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-search"></i>
+                            <span>Global user search</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>End-to-end encryption</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-users"></i>
+                            <span>Group chats</span>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Messages will be loaded here -->
+                <div class="typing-indicator" id="typing-indicator" style="display: none;">
+                    <div class="typing-dots">
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                    </div>
+                    <span id="typing-user">is typing...</span>
+                </div>
             </div>
 
             <!-- Message Input -->
-            <div class="message-input-container">
-                <button class="input-action-btn" title="Emoji">
-                    <i class="far fa-smile"></i>
-                </button>
-                <button class="input-action-btn" title="Attachment">
-                    <i class="fas fa-paperclip"></i>
-                </button>
-                <div class="message-input-wrapper">
-                    <textarea class="message-input" id="message-input" 
-                              placeholder="Type a message..."
-                              rows="1"></textarea>
+            <div class="message-input-container" id="message-input-container" style="display: none;">
+                <div class="input-actions">
+                    <button class="action-btn" onclick="app.toggleEmojiPicker()" title="Emoji">
+                        <i class="far fa-smile"></i>
+                    </button>
+                    <button class="action-btn" onclick="app.showFilePicker()" title="Attachment">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <button class="action-btn" onclick="app.toggleVoiceMessage()" title="Voice Message">
+                        <i class="fas fa-microphone"></i>
+                    </button>
                 </div>
-                <button class="mic-button" id="mic-button" title="Voice Message">
-                    <i class="fas fa-microphone"></i>
-                </button>
-                <button class="send-button" id="send-button" title="Send">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
+                
+                <div class="message-input-wrapper">
+                    <div class="input-wrapper">
+                        <textarea class="message-input" id="message-input" 
+                                  placeholder="Type a message..."
+                                  rows="1"></textarea>
+                        <div class="input-actions-right">
+                            <button class="action-btn" onclick="app.toggleFormatting()" title="Formatting">
+                                <i class="fas fa-bold"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="send-actions">
+                    <button class="send-button" id="send-button" onclick="app.sendMessage()">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                    <button class="voice-button" id="voice-button" onclick="app.startVoiceRecording()" style="display: none;">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                </div>
             </div>
+
+            <!-- File Input (Hidden) -->
+            <input type="file" id="file-input" multiple style="display: none;" 
+                   onchange="app.handleFileUpload(this.files)">
         </div>
 
-        <!-- User Info Sidebar -->
-        <div class="info-sidebar" id="info-sidebar">
-            <div class="info-header">
-                <button class="info-close" onclick="toggleUserInfo()">
+        <!-- Chat Info Sidebar -->
+        <div class="chat-info-sidebar" id="chat-info-sidebar">
+            <div class="sidebar-header">
+                <button class="back-button" onclick="app.toggleChatInfo()">
                     <i class="fas fa-times"></i>
                 </button>
-                <div class="info-title">Chat Info</div>
-            </div>
-            <div class="info-content" id="user-info-content">
-                <!-- User info will be loaded here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Admin Dashboard -->
-    <div class="admin-dashboard" id="admin-dashboard">
-        <div class="admin-sidebar">
-            <ul class="admin-menu">
-                <li><a href="#" class="admin-menu-item active" data-section="dashboard">
-                    <i class="fas fa-tachometer-alt"></i> Dashboard
-                </a></li>
-                <li><a href="#" class="admin-menu-item" data-section="users">
-                    <i class="fas fa-users"></i> Users
-                </a></li>
-                <li><a href="#" class="admin-menu-item" data-section="conversations">
-                    <i class="fas fa-comments"></i> Conversations
-                </a></li>
-                <li><a href="#" class="admin-menu-item" data-section="messages">
-                    <i class="fas fa-envelope"></i> Messages
-                </a></li>
-                <li><a href="#" class="admin-menu-item" data-section="flags">
-                    <i class="fas fa-flag"></i> Flagged Content
-                </a></li>
-                <li><a href="#" class="admin-menu-item" onclick="app.logout()">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </a></li>
-            </ul>
-        </div>
-        
-        <div class="admin-content">
-            <div class="admin-section active" id="admin-dashboard">
-                <h2>Admin Dashboard</h2>
-                <p>Welcome to B MESSENGER Admin Panel</p>
-                <!-- Dashboard stats will be loaded here -->
+                <h3>Chat Info</h3>
             </div>
             
-            <div class="admin-section" id="admin-users">
-                <h2>Users Management</h2>
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Username</th>
-                            <th>Display Name</th>
-                            <th>Role</th>
-                            <th>Joined</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Users will be loaded here -->
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="admin-section" id="admin-conversations">
-                <h2>Conversations</h2>
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Type</th>
-                            <th>Name</th>
-                            <th>Participants</th>
-                            <th>Last Activity</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Conversations will be loaded here -->
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="admin-section" id="admin-messages">
-                <h2>Messages</h2>
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Content</th>
-                            <th>Sender</th>
-                            <th>Conversation</th>
-                            <th>Time</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Messages will be loaded here -->
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="admin-section" id="admin-flags">
-                <h2>Flagged Content</h2>
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Message</th>
-                            <th>Reason</th>
-                            <th>Severity</th>
-                            <th>Flagged At</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Flags will be loaded here -->
-                    </tbody>
-                </table>
+            <div class="sidebar-content" id="chat-info-content">
+                <!-- Chat info will be loaded here -->
             </div>
         </div>
     </div>
 
     <!-- Modals -->
+    
+    <!-- New Chat Modal -->
     <div class="modal" id="new-chat-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title">New Chat</div>
-                <button class="modal-close" onclick="closeModal('new-chat-modal')">
+                <h3>New Chat</h3>
+                <button class="modal-close" onclick="app.hideModal('new-chat-modal')">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
+                <div class="search-box modal-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" class="search-input" id="new-chat-search" 
+                           placeholder="Search users...">
+                </div>
                 <div class="users-list" id="new-chat-users">
-                    <!-- Users for new chat will be loaded here -->
+                    <!-- Users will be loaded here -->
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- New Group Modal -->
+    <div class="modal" id="new-group-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>New Group</h3>
+                <button class="modal-close" onclick="app.hideModal('new-group-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Group Name</label>
+                    <input type="text" id="group-name" class="form-input" 
+                           placeholder="Enter group name">
+                </div>
+                
+                <div class="form-group">
+                    <label>Add Participants</label>
+                    <div class="search-box modal-search">
+                        <i class="fas fa-search"></i>
+                        <input type="text" class="search-input" id="group-user-search" 
+                               placeholder="Search users to add...">
+                    </div>
+                    <div class="selected-users" id="selected-users">
+                        <!-- Selected users will appear here -->
+                    </div>
+                </div>
+                
+                <div class="users-list" id="group-users-list">
+                    <!-- Users will be loaded here -->
+                </div>
+                
+                <button class="primary-button" onclick="app.createGroup()">
+                    Create Group
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div class="modal" id="profile-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>My Profile</h3>
+                <button class="modal-close" onclick="app.hideModal('profile-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="profile-header">
+                    <div class="profile-avatar">
+                        <img id="profile-avatar-img" alt="Profile Avatar">
+                        <button class="avatar-upload" onclick="app.uploadAvatar()">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                    </div>
+                    <h3 id="profile-display-name">Loading...</h3>
+                    <p id="profile-status">Loading...</p>
+                </div>
+                
+                <div class="profile-info">
+                    <div class="info-item">
+                        <label>Username</label>
+                        <p id="profile-username">Loading...</p>
+                    </div>
+                    <div class="info-item">
+                        <label>Email</label>
+                        <p id="profile-email">Loading...</p>
+                    </div>
+                    <div class="info-item">
+                        <label>Bio</label>
+                        <p id="profile-bio">No bio yet</p>
+                    </div>
+                    <div class="info-item">
+                        <label>Member Since</label>
+                        <p id="profile-joined">Loading...</p>
+                    </div>
+                </div>
+                
+                <button class="primary-button" onclick="app.editProfile()">
+                    Edit Profile
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
     <div class="modal" id="settings-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title">Settings</div>
-                <button class="modal-close" onclick="closeModal('settings-modal')">
+                <h3>Settings</h3>
+                <button class="modal-close" onclick="app.hideModal('settings-modal')">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
                 <div class="settings-section">
+                    <h4>Appearance</h4>
                     <div class="settings-option">
-                        <div class="option-info">
-                            <div class="option-title">Display Name</div>
-                            <input type="text" class="form-input" id="settings-name" 
-                                   onchange="app.updateProfile()">
-                        </div>
-                    </div>
-                    <div class="settings-option">
-                        <div class="option-info">
-                            <div class="option-title">About</div>
-                            <input type="text" class="form-input" id="settings-about" 
-                                   onchange="app.updateProfile()" placeholder="Your status">
-                        </div>
+                        <span>Theme</span>
+                        <select id="theme-select" class="select-input">
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                            <option value="auto">Auto</option>
+                        </select>
                     </div>
                 </div>
                 
                 <div class="settings-section">
+                    <h4>Notifications</h4>
                     <div class="settings-option">
-                        <div class="option-info">
-                            <div class="option-title">Theme</div>
-                            <div class="option-desc">Choose light or dark mode</div>
-                        </div>
-                        <select class="select-dropdown" id="theme-select" onchange="app.changeTheme()">
-                            <option value="light">Light</option>
-                            <option value="dark">Dark</option>
+                        <span>Message Notifications</span>
+                        <label class="switch">
+                            <input type="checkbox" id="notifications-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-option">
+                        <span>Sound</span>
+                        <label class="switch">
+                            <input type="checkbox" id="sound-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h4>Privacy</h4>
+                    <div class="settings-option">
+                        <span>Last Seen</span>
+                        <select id="last-seen-select" class="select-input">
+                            <option value="everyone">Everyone</option>
+                            <option value="contacts">My Contacts</option>
+                            <option value="nobody">Nobody</option>
                         </select>
+                    </div>
+                    <div class="settings-option">
+                        <span>Read Receipts</span>
+                        <label class="switch">
+                            <input type="checkbox" id="read-receipts-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h4>Account</h4>
+                    <button class="secondary-button" onclick="app.changePassword()">
+                        Change Password
+                    </button>
+                    <button class="danger-button" onclick="app.deleteAccount()">
+                        Delete Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard Modal -->
+    <div class="modal" id="admin-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Admin Dashboard</h3>
+                <button class="modal-close" onclick="app.hideModal('admin-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="admin-tabs" id="admin-tabs">
+                    <button class="tab-button active" data-tab="users">Users</button>
+                    <button class="tab-button" data-tab="messages">Messages</button>
+                    <button class="tab-button" data-tab="reports">Reports</button>
+                </div>
+                
+                <div class="admin-content">
+                    <div class="admin-section active" id="admin-users">
+                        <h4>User Management</h4>
+                        <div class="admin-table-container">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Joined</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-users-list">
+                                    <!-- Users will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-section" id="admin-messages">
+                        <h4>Message Management</h4>
+                        <!-- Messages content -->
+                    </div>
+                    
+                    <div class="admin-section" id="admin-reports">
+                        <h4>Reports</h4>
+                        <!-- Reports content -->
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast-container" id="toast-container"></div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="/script.js"></script>
 </body>
-  </html>
+                                                       </html>
