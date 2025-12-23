@@ -78,7 +78,7 @@ const upload = multer({
 let db;
 let mongoClient;
 
-// Connect to MongoDB
+// Connect to MongoDB with safe index creation
 async function connectToDatabase() {
     try {
         const client = new MongoClient(MONGODB_URI);
@@ -88,20 +88,95 @@ async function connectToDatabase() {
         db = client.db(DB_NAME);
         mongoClient = client;
         
-        // Create indexes
-        await db.collection(COLLECTIONS.USERS).createIndex({ username: 1 }, { unique: true });
-        await db.collection(COLLECTIONS.USERS).createIndex({ email: 1 }, { unique: true });
-        await db.collection(COLLECTIONS.MESSAGES).createIndex({ conversationId: 1, timestamp: -1 });
-        await db.collection(COLLECTIONS.MESSAGES).createIndex({ senderId: 1, receiverId: 1 });
-        await db.collection(COLLECTIONS.MESSAGES).createIndex({ content: 'text' });
-        await db.collection(COLLECTIONS.USERS).createIndex({ username: 'text', name: 'text', displayName: 'text' });
-        await db.collection(COLLECTIONS.CONVERSATIONS).createIndex({ participants: 1 });
-        await db.collection(COLLECTIONS.CONVERSATIONS).createIndex({ lastActivity: -1 });
+        // Check and create indexes safely
+        await createIndexesSafely();
         
         return client;
     } catch (error) {
         console.error('❌ MongoDB connection failed:', error);
         process.exit(1);
+    }
+}
+
+// Safe index creation that handles existing indexes
+async function createIndexesSafely() {
+    try {
+        console.log('🔧 Setting up database indexes...');
+        
+        // Get existing indexes to avoid conflicts
+        const existingIndexes = {
+            users: await db.collection(COLLECTIONS.USERS).indexes(),
+            messages: await db.collection(COLLECTIONS.MESSAGES).indexes(),
+            conversations: await db.collection(COLLECTIONS.CONVERSATIONS).indexes()
+        };
+        
+        // Create indexes only if they don't exist
+        await createIndexIfNotExists(COLLECTIONS.USERS, { username: 1 }, { unique: true, name: 'username_unique' });
+        await createIndexIfNotExists(COLLECTIONS.USERS, { email: 1 }, { unique: true, name: 'email_unique' });
+        await createIndexIfNotExists(COLLECTIONS.USERS, { username: 'text', displayName: 'text', name: 'text' }, { name: 'user_search_text' });
+        
+        await createIndexIfNotExists(COLLECTIONS.MESSAGES, { conversationId: 1, timestamp: -1 }, { name: 'conversation_timestamp' });
+        await createIndexIfNotExists(COLLECTIONS.MESSAGES, { sender: 1, receiver: 1 }, { name: 'sender_receiver' });
+        await createIndexIfNotExists(COLLECTIONS.MESSAGES, { content: 'text' }, { name: 'message_content_text' });
+        
+        if (!existingIndexes.conversations) {
+            await db.collection(COLLECTIONS.CONVERSATIONS).createIndex({ participants: 1 }, { name: 'participants_index' });
+            await db.collection(COLLECTIONS.CONVERSATIONS).createIndex({ lastActivity: -1 }, { name: 'last_activity_desc' });
+        }
+        
+        console.log('✅ Database indexes setup completed');
+        
+    } catch (error) {
+        console.error('❌ Index creation error:', error.message);
+        // Don't fail the entire app if index creation fails
+    }
+}
+
+// Helper function to create index only if it doesn't exist
+async function createIndexIfNotExists(collectionName, keys, options = {}) {
+    const collection = db.collection(collectionName);
+    const indexes = await collection.indexes();
+    
+    // Check if similar index already exists
+    const indexExists = indexes.some(index => {
+        // Compare keys
+        const existingKeys = JSON.stringify(index.key);
+        const newKeys = JSON.stringify(keys);
+        
+        // Check if keys match
+        if (existingKeys === newKeys) {
+            console.log(`⚠️  Index already exists for ${collectionName}:`, index.name);
+            return true;
+        }
+        
+        // Check if it's a unique index on the same field
+        if (options.unique) {
+            const existingKeyNames = Object.keys(index.key);
+            const newKeyNames = Object.keys(keys);
+            
+            if (existingKeyNames.length === 1 && newKeyNames.length === 1) {
+                if (existingKeyNames[0] === newKeyNames[0]) {
+                    console.log(`⚠️  Unique index already exists on ${existingKeyNames[0]} for ${collectionName}`);
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    });
+    
+    if (!indexExists) {
+        try {
+            await collection.createIndex(keys, options);
+            console.log(`✅ Created index for ${collectionName}:`, options.name || 'unnamed');
+        } catch (error) {
+            // If it's an index conflict error, just log it
+            if (error.code === 85 || error.codeName === 'IndexOptionsConflict') {
+                console.log(`⚠️  Index conflict for ${collectionName}, using existing index`);
+            } else {
+                throw error;
+            }
+        }
     }
 }
 
@@ -152,7 +227,8 @@ app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
     service: 'B MESSENGER',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
   });
 });
 
@@ -362,22 +438,6 @@ app.get('/api/users/all', authenticateToken, async (req, res) => {
     }
 });
 
-app.get('/api/users/online', authenticateToken, async (req, res) => {
-    try {
-        const onlineUsernames = Array.from(onlineUsers);
-        const users = await db.collection(COLLECTIONS.USERS)
-            .find({ 
-                username: { $in: onlineUsernames, $ne: req.user.username } 
-            }, { projection: { password: 0 } })
-            .toArray();
-        
-        res.json({ success: true, users });
-    } catch (error) {
-        console.error('Get online users error:', error);
-        res.status(500).json({ success: false, error: 'Failed to get online users' });
-    }
-});
-
 app.get('/api/users/search', authenticateToken, async (req, res) => {
     try {
         const { query } = req.query;
@@ -553,28 +613,24 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
 
 app.post('/api/conversations/start', authenticateToken, async (req, res) => {
     try {
-        const { userId, username } = req.body;
+        const { username: targetUsername } = req.body;
         const currentUsername = req.user.username;
         
-        if (!userId && !username) {
-            return res.status(400).json({ success: false, error: 'User ID or username required' });
+        if (!targetUsername) {
+            return res.status(400).json({ success: false, error: 'Username required' });
         }
         
-        const targetUsername = username || (await db.collection(COLLECTIONS.USERS).findOne({ userId }))?.username;
-        
-        if (!targetUsername) {
-            return res.status(404).json({ success: false, error: 'User not found' });
+        if (targetUsername === currentUsername) {
+            return res.status(400).json({ success: false, error: 'Cannot start conversation with yourself' });
         }
         
         const conversationId = generateConversationId(currentUsername, targetUsername);
         
         // Check if conversation already exists
-        const existingMessages = await db.collection(COLLECTIONS.MESSAGES)
-            .find({ conversationId })
-            .limit(1)
-            .toArray();
+        const existingMessage = await db.collection(COLLECTIONS.MESSAGES)
+            .findOne({ conversationId });
         
-        if (existingMessages.length > 0) {
+        if (existingMessage) {
             return res.json({ 
                 success: true, 
                 conversationId,
@@ -656,31 +712,6 @@ app.get('/api/messages/:conversationId', authenticateToken, async (req, res) => 
     }
 });
 
-app.post('/api/messages/search', authenticateToken, async (req, res) => {
-    try {
-        const { query } = req.body;
-        
-        if (!query) {
-            return res.json({ success: true, messages: [] });
-        }
-        
-        const messages = await db.collection(COLLECTIONS.MESSAGES)
-            .find({
-                $text: { $search: query },
-                $or: [{ sender: req.user.username }, { receiver: req.user.username }],
-                deleted: { $ne: true }
-            })
-            .sort({ timestamp: -1 })
-            .limit(50)
-            .toArray();
-        
-        res.json({ success: true, messages });
-    } catch (error) {
-        console.error('Search messages error:', error);
-        res.status(500).json({ success: false, error: 'Search failed' });
-    }
-});
-
 // 4. GROUP CHATS
 app.post('/api/groups/create', authenticateToken, async (req, res) => {
     try {
@@ -731,28 +762,6 @@ app.post('/api/groups/create', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Create group error:', error);
         res.status(500).json({ success: false, error: 'Failed to create group' });
-    }
-});
-
-app.get('/api/groups/:groupId', authenticateToken, async (req, res) => {
-    try {
-        const { groupId } = req.params;
-        
-        const group = await db.collection(COLLECTIONS.GROUPS).findOne({ groupId });
-        
-        if (!group) {
-            return res.status(404).json({ success: false, error: 'Group not found' });
-        }
-        
-        // Check if user is a participant
-        if (!group.participants.includes(req.user.username)) {
-            return res.status(403).json({ success: false, error: 'Access denied' });
-        }
-        
-        res.json({ success: true, group });
-    } catch (error) {
-        console.error('Get group error:', error);
-        res.status(500).json({ success: false, error: 'Failed to get group' });
     }
 });
 
@@ -865,51 +874,7 @@ app.put('/api/settings', authenticateToken, async (req, res) => {
     }
 });
 
-// 7. BLOCK USERS
-app.post('/api/block', authenticateToken, async (req, res) => {
-    try {
-        const { blocked } = req.body;
-        
-        await db.collection(COLLECTIONS.BLOCKED_USERS).updateOne(
-            { blocker: req.user.username, blocked },
-            { $set: { blockedAt: new Date() } },
-            { upsert: true }
-        );
-        
-        res.json({ success: true, message: 'User blocked' });
-    } catch (error) {
-        console.error('Block user error:', error);
-        res.status(500).json({ success: false, error: 'Failed to block user' });
-    }
-});
-
-app.post('/api/unblock', authenticateToken, async (req, res) => {
-    try {
-        const { blocked } = req.body;
-        
-        await db.collection(COLLECTIONS.BLOCKED_USERS).deleteOne({ blocker: req.user.username, blocked });
-        
-        res.json({ success: true, message: 'User unblocked' });
-    } catch (error) {
-        console.error('Unblock user error:', error);
-        res.status(500).json({ success: false, error: 'Failed to unblock user' });
-    }
-});
-
-app.get('/api/blocked', authenticateToken, async (req, res) => {
-    try {
-        const blocked = await db.collection(COLLECTIONS.BLOCKED_USERS)
-            .find({ blocker: req.user.username })
-            .toArray();
-        
-        res.json({ success: true, blocked: blocked.map(b => b.blocked) });
-    } catch (error) {
-        console.error('Get blocked users error:', error);
-        res.status(500).json({ success: false, error: 'Failed to get blocked users' });
-    }
-});
-
-// 8. ADMIN ROUTES
+// 7. ADMIN ROUTES
 app.get('/api/admin/users', authenticateToken, isAdmin, async (req, res) => {
     try {
         const users = await db.collection(COLLECTIONS.USERS)
@@ -924,50 +889,18 @@ app.get('/api/admin/users', authenticateToken, isAdmin, async (req, res) => {
     }
 });
 
-app.get('/api/admin/conversations', authenticateToken, isAdmin, async (req, res) => {
-    try {
-        const conversations = await db.collection(COLLECTIONS.MESSAGES)
-            .aggregate([
-                { 
-                    $match: { deleted: { $ne: true } }
-                },
-                { 
-                    $sort: { timestamp: -1 }
-                },
-                { 
-                    $group: { 
-                        _id: "$conversationId",
-                        lastMessage: { $first: "$$ROOT" },
-                        messageCount: { $sum: 1 }
-                    } 
-                },
-                { $sort: { "lastMessage.timestamp": -1 } },
-                { $limit: 100 }
-            ])
-            .toArray();
-        
-        res.json({ success: true, conversations });
-    } catch (error) {
-        console.error('Admin get conversations error:', error);
-        res.status(500).json({ success: false, error: 'Failed to get conversations' });
-    }
-});
-
 app.get('/api/admin/messages', authenticateToken, isAdmin, async (req, res) => {
     try {
-        const { conversationId, username, keyword, startDate, endDate, page = 1, limit = 50 } = req.query;
+        const { conversationId, username, keyword, page = 1, limit = 50 } = req.query;
         
         let query = { deleted: { $ne: true } };
         
         if (conversationId) query.conversationId = conversationId;
         if (username) query.$or = [{ sender: username }, { receiver: username }];
-        if (keyword) query.$text = { $search: keyword };
-        
-        if (startDate || endDate) {
-            query.timestamp = {};
-            if (startDate) query.timestamp.$gte = new Date(startDate);
-            if (endDate) query.timestamp.$lte = new Date(endDate);
-        }
+        if (keyword) query.$or = [
+            { text: { $regex: keyword, $options: 'i' } },
+            { content: { $regex: keyword, $options: 'i' } }
+        ];
 
         const messages = await db.collection(COLLECTIONS.MESSAGES)
             .find(query)
@@ -989,57 +922,6 @@ app.get('/api/admin/messages', authenticateToken, isAdmin, async (req, res) => {
     } catch (error) {
         console.error('Admin get messages error:', error);
         res.status(500).json({ success: false, error: 'Failed to get messages' });
-    }
-});
-
-app.get('/api/admin/flags', authenticateToken, isAdmin, async (req, res) => {
-    try {
-        const flags = await db.collection(COLLECTIONS.ADMIN_FLAGS)
-            .find({})
-            .sort({ createdAt: -1 })
-            .toArray();
-        
-        res.json({ success: true, flags });
-    } catch (error) {
-        console.error('Admin get flags error:', error);
-        res.status(500).json({ success: false, error: 'Failed to get flags' });
-    }
-});
-
-app.post('/api/admin/flags/:flagId/review', authenticateToken, isAdmin, async (req, res) => {
-    try {
-        const { flagId } = req.params;
-        const { action } = req.body;
-        
-        const flag = await db.collection(COLLECTIONS.ADMIN_FLAGS).findOne({ 
-            _id: new ObjectId(flagId) 
-        });
-        
-        if (!flag) {
-            return res.status(404).json({ success: false, error: 'Flag not found' });
-        }
-        
-        flag.reviewed = true;
-        flag.reviewedBy = req.user.username;
-        flag.reviewedAt = new Date();
-        
-        if (action === 'delete') {
-            await db.collection(COLLECTIONS.MESSAGES).updateOne(
-                { _id: flag.messageId },
-                { $set: { deleted: true, deletedAt: new Date() } }
-            );
-        }
-        
-        await db.collection(COLLECTIONS.ADMIN_FLAGS).updateOne(
-            { _id: new ObjectId(flagId) },
-            { $set: flag }
-        );
-        
-        res.json({ success: true, message: 'Flag reviewed successfully' });
-        
-    } catch (error) {
-        console.error('Review flag error:', error);
-        res.status(500).json({ success: false, error: 'Failed to review flag' });
     }
 });
 
@@ -1184,8 +1066,6 @@ io.on('connection', (socket) => {
                 content: text || '',
                 sender,
                 receiver,
-                senderId: sender,
-                receiverId: receiver,
                 timestamp: new Date(),
                 conversationId,
                 type: type,
@@ -1194,24 +1074,6 @@ io.on('connection', (socket) => {
                 tempId,
                 ...(file && { file })
             };
-            
-            // Auto-flag sensitive content
-            const sensitiveKeywords = ['badword', 'spam', 'scam', 'hack', 'cheat'];
-            const hasSensitiveContent = sensitiveKeywords.some(keyword => 
-                text.toLowerCase().includes(keyword.toLowerCase())
-            );
-            
-            if (hasSensitiveContent) {
-                const flag = {
-                    messageId: messageId,
-                    conversationId,
-                    reason: 'Sensitive content detected',
-                    severity: 'medium',
-                    reviewed: false,
-                    createdAt: new Date()
-                };
-                await db.collection(COLLECTIONS.ADMIN_FLAGS).insertOne(flag);
-            }
             
             // Save to database
             await db.collection(COLLECTIONS.MESSAGES).insertOne(message);
@@ -1313,64 +1175,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('message-read', async (data) => {
-        try {
-            const { messageId, reader } = data;
-            
-            // Update message as read
-            const result = await db.collection(COLLECTIONS.MESSAGES).updateOne(
-                { _id: new ObjectId(messageId), receiver: reader },
-                { $set: { read: true, readAt: new Date() } }
-            );
-            
-            if (result.modifiedCount > 0) {
-                // Notify sender
-                const message = await db.collection(COLLECTIONS.MESSAGES).findOne({ 
-                    _id: new ObjectId(messageId) 
-                });
-                
-                if (message) {
-                    const senderSocketId = userSockets.get(message.sender);
-                    if (senderSocketId) {
-                        io.to(senderSocketId).emit('message-read', { 
-                            messageId,
-                            reader 
-                        });
-                    }
-                }
-            }
-            
-        } catch (error) {
-            console.error('Message read error:', error);
-        }
-    });
-
-    socket.on('delete-message', async (data) => {
-        try {
-            const { messageId, username } = data;
-            
-            // Check if user owns the message
-            const message = await db.collection(COLLECTIONS.MESSAGES).findOne({ 
-                _id: new ObjectId(messageId) 
-            });
-            
-            if (message && message.sender === username) {
-                // Soft delete
-                await db.collection(COLLECTIONS.MESSAGES).updateOne(
-                    { _id: new ObjectId(messageId) },
-                    { $set: { deleted: true, deletedAt: new Date() } }
-                );
-                
-                // Notify both users
-                const conversationId = message.conversationId;
-                io.to(conversationId).emit('message-deleted', { messageId });
-            }
-            
-        } catch (error) {
-            console.error('Delete message error:', error);
-        }
-    });
-
     socket.on('disconnect', async () => {
         try {
             const userData = activeUsers.get(socket.id);
@@ -1418,6 +1222,7 @@ connectToDatabase().then(() => {
         console.log('='.repeat(60));
         console.log(`✅ Server running on port ${PORT}`);
         console.log(`✅ MongoDB: Connected to ${DB_NAME}`);
+        console.log(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
         console.log(`✅ File uploads: Enabled (10MB max)`);
         console.log(`✅ Features: Real-time chat, Search, File sharing`);
         console.log(`✅ Admin Dashboard: Enabled`);
@@ -1435,7 +1240,6 @@ connectToDatabase().then(() => {
         console.log('• Message search');
         console.log('• Online/offline status');
         console.log('• Admin moderation dashboard');
-        console.log('• Content auto-flagging');
         console.log('='.repeat(60));
     });
 });
